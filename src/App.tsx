@@ -1,35 +1,43 @@
-import React, {useEffect, useState, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import axios from 'axios';
 import * as d3 from 'd3';
 import * as CountryFlag from 'country-flag-icons/react/3x2';
 
 import {
+    Avatar,
     Button,
     CircularProgress,
-    IconButton,
-    Container,
-    Grid,
     Collapse,
-    Avatar,
-    Paper,
+    Container,
+    Dialog,
+    DialogTitle,
+    Grid,
+    IconButton,
     List,
     ListItem,
     ListItemAvatar,
     ListItemText,
-    DialogTitle,
-    Dialog,
+    Paper,
 } from '@material-ui/core';
+import {saveSvgAsPng} from 'save-svg-as-png';
 import Alert from '@material-ui/lab/Alert';
-import {DirectionsBoat, DirectionsBoatOutlined, InsertChartOutlined, Close, Clear} from '@material-ui/icons';
-import {Seaport} from "./constants/CommonConstants";
+import {Clear, Close, DirectionsBoat, DirectionsBoatOutlined, InsertChartOutlined, GetApp} from '@material-ui/icons';
+import {GraphStatus, Seaport} from "./constants/CommonConstants";
 import API_CONFIG from './config';
-import { mockDataRouteSghRtm } from './mocks/mockDataRouteSghRtm';
+import {mockDataRouteSghRtm} from './mocks/mockDataRouteSghRtm';
 
 import './App.css';
 
 interface ISeaport {
     code: string;
     name: string;
+}
+
+interface IGraphData {
+    day: string;
+    low: number;
+    mean: number;
+    high: number;
 }
 
 interface ID3Graph {
@@ -49,7 +57,12 @@ function App() {
     const [isApiError, setIsApiError] = useState(false);
     const [apiErrorMessage, setApiErrorMessage] = useState('');
     const [seaportList, setSeaportList] = useState([]);
-    const [graphData, setGraphData] = useState([])
+    const [isGetGraphDataStarted, setIsGetGraphDataStarted] = useState(false);
+    const [isGetGraphDataEnded, setIsGetGraphDataEnded] = useState(true);
+    const [graphData, setGraphData] = useState([]);
+    const [graphDataLength, setGraphDataLength] = useState(0);
+    const [graphDataRangeStart, setGraphDataRangeStart] = useState<string>('');
+    const [graphDataRangeEnd, setGraphDataRangeEnd] = useState<string>('');
     const [seaportSelectedFrom, setSeaportSelectedFrom] = useState<ISeaport | null>(null);
     const [seaportSelectedTo, setSeaportSelectedTo] = useState<ISeaport | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -72,7 +85,18 @@ function App() {
             getSeaportList();
             setIsLoading(false);
         }
+
+        setGraphDataLength(graphData.length);
     }, []);
+
+    useEffect(() => {
+        if (graphDataLength > 0) {
+            // @ts-ignore
+            setGraphDataRangeStart(graphData[0]?.day);
+            // @ts-ignore
+            setGraphDataRangeEnd(graphData[graphDataLength - 1]?.day);
+        }
+    }, [graphData])
 
     useEffect(() => {
         if (!!seaportSelectedFrom?.code && !!seaportSelectedTo?.code) {
@@ -85,11 +109,6 @@ function App() {
             clearSeach();
         }
     }, [isApiError]);
-
-    useEffect(() => {
-        console.log(graphData);
-    });
-
 
     // GET Seaports
     const getSeaportList = () => axiosToAWS
@@ -105,8 +124,10 @@ function App() {
     // CLEAR Search
     const clearSeach = () => {
         setGraphData([]);
-        setSeaportSelectedFrom(null)
-        setSeaportSelectedTo(null)
+        setGraphDataRangeStart('');
+        setGraphDataRangeEnd('');
+        setSeaportSelectedFrom(null);
+        setSeaportSelectedTo(null);
         setIsSearchDisabled(true);
     }
 
@@ -115,6 +136,8 @@ function App() {
         if (isSearchDisabled) {
             return null;
         }
+
+        setIsGetGraphDataStarted(true);
 
         return axiosToAWS
             .get(API_CONFIG.API_RATES, {
@@ -131,7 +154,7 @@ function App() {
                 setApiErrorMessage(error.message);
             })
             .then(() => {
-                console.log(graphData);
+                setIsGetGraphDataEnded(true);
             });
     };
 
@@ -155,12 +178,31 @@ function App() {
 
     // Graph messages
     const showGraphDataStatus = () => {
-        // if (graphData) {
-        //     return null;
+        let statusTextPrimary = GraphStatus.INITIAL;
+        let statusTextSecondary = GraphStatus.SELECT_ROUTE;
+
+        if (isGetGraphDataStarted) {
+            statusTextPrimary = GraphStatus.FETCH_STARTED;
+            statusTextSecondary = GraphStatus.EMPTY;
+        }
+
+        if (isGetGraphDataStarted && isGetGraphDataEnded && graphDataLength === 0) {
+            statusTextPrimary = GraphStatus.FETCH_NO_RECORDS;
+            statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
+        }
+
+        if (isGetGraphDataStarted && isGetGraphDataEnded && isApiError) {
+            statusTextPrimary = GraphStatus.FETCH_FAILED;
+            statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
+        }
+
+        // if () {
+        //     statusTextPrimary = GraphStatus.CLEARED;
         // }
+
         return (
             <div className="ssg-graph-status">
-                <h1>Oh, no! There is no data.<small>Try selecting a route</small></h1>
+                <h1>{statusTextPrimary}<small>{statusTextSecondary}</small></h1>
             </div>
         )
     }
@@ -189,7 +231,7 @@ function App() {
         }
 
         useEffect(() => {
-            if (graphData.length > 0) {
+            if (graphDataLength > 0) {
                 // Scale X
                 const xScaleDay = mockDataRouteSghRtm.map(entry => entry.day);
                 const xScale = d3.scaleBand()
@@ -261,6 +303,10 @@ function App() {
         );
 
     };
+
+    const saveGraphToPng = () => {
+        return saveSvgAsPng(document.querySelector('.d3-graph-component'), 'export-ssg.png');
+    }
 
     const countryFlagComponent = (seaport: ISeaport | null) => {
         if (!seaport) {
@@ -419,7 +465,25 @@ function App() {
                             <D3Graph width={852} height={320}/>
                             {showGraphDataStatus()}
                         </Paper>
-                        <h4>Shipping prices for DATE1 to DATE2</h4>
+                        <Collapse in={graphDataLength > 0}>
+                            <Grid container spacing={5}>
+                                <Grid item xs={8}>
+                                    <h4 style={{padding: 0, margin: 0, lineHeight: '36px'}}>Shipping prices for {graphDataRangeStart} to {graphDataRangeEnd}.</h4>
+                                </Grid>
+                                <Grid item xs={4} style={{textAlign: 'right'}}>
+                                    <Button
+                                        // style={{width: 42, minWidth: 42, height: 48}}
+                                        variant='outlined'
+                                        onClick={() => saveGraphToPng()}
+                                        disableElevation
+                                        disabled={isSearchDisabled}
+                                    >
+                                        <GetApp/>
+                                        Save as PNG
+                                    </Button>
+                                </Grid>
+                            </Grid>
+                        </Collapse>
                     </div>
                 </main>
             </Paper>
