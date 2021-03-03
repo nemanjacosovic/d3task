@@ -20,7 +20,7 @@ import {
     Dialog,
 } from '@material-ui/core';
 import Alert from '@material-ui/lab/Alert';
-import {DirectionsBoat, DirectionsBoatOutlined, InsertChartOutlined, Close} from '@material-ui/icons';
+import {DirectionsBoat, DirectionsBoatOutlined, InsertChartOutlined, Close, Clear} from '@material-ui/icons';
 import {Seaport} from "./constants/CommonConstants";
 import API_CONFIG from './config';
 import { mockDataRouteSghRtm } from './mocks/mockDataRouteSghRtm';
@@ -50,8 +50,8 @@ function App() {
     const [apiErrorMessage, setApiErrorMessage] = useState('');
     const [seaportList, setSeaportList] = useState([]);
     const [graphData, setGraphData] = useState([])
-    const [seaportSelectedFrom, setSeaportSelectedFrom] = useState('');
-    const [seaportSelectedTo, setSeaportSelectedTo] = useState('');
+    const [seaportSelectedFrom, setSeaportSelectedFrom] = useState<ISeaport | null>(null);
+    const [seaportSelectedTo, setSeaportSelectedTo] = useState<ISeaport | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [dialogOpenType, setDialogOpenType] = useState('');
     const [isSearchDisabled, setIsSearchDisabled] = useState(true);
@@ -75,10 +75,20 @@ function App() {
     }, []);
 
     useEffect(() => {
-        if (!!seaportSelectedFrom && !!seaportSelectedTo) {
+        if (!!seaportSelectedFrom?.code && !!seaportSelectedTo?.code) {
             setIsSearchDisabled(false);
         }
     }, [seaportSelectedFrom, seaportSelectedTo]);
+
+    useEffect(() => {
+        if (isApiError) {
+            clearSeach();
+        }
+    }, [isApiError]);
+
+    useEffect(() => {
+        console.log(graphData);
+    });
 
 
     // GET Seaports
@@ -92,6 +102,14 @@ function App() {
             setApiErrorMessage(error.message);
         });
 
+    // CLEAR Search
+    const clearSeach = () => {
+        setGraphData([]);
+        setSeaportSelectedFrom(null)
+        setSeaportSelectedTo(null)
+        setIsSearchDisabled(true);
+    }
+
     // GET Graph Data
     const getGraphData = () => {
         if (isSearchDisabled) {
@@ -101,8 +119,8 @@ function App() {
         return axiosToAWS
             .get(API_CONFIG.API_RATES, {
                 params: {
-                    origin: seaportSelectedFrom,
-                    destination: seaportSelectedTo
+                    origin: seaportSelectedFrom?.code,
+                    destination: seaportSelectedTo?.code
                 }
             })
             .then(function (response) {
@@ -119,6 +137,7 @@ function App() {
 
     // Dialog OPEN
     const handleDialogOpen = (portRoute: string) => {
+        setIsApiError(false);
         setIsDialogOpen(true);
         setDialogOpenType(portRoute);
     };
@@ -129,10 +148,22 @@ function App() {
     };
 
     // Dialog SELECTED
-    const handleDialogSelectedValue = (portSelected: string) => {
-        dialogOpenType === Seaport.FROM ? setSeaportSelectedFrom(portSelected) : setSeaportSelectedTo(portSelected);
+    const handleDialogSelectedValue = (seaportSelected: ISeaport) => {
+        dialogOpenType === Seaport.FROM ? setSeaportSelectedFrom(seaportSelected) : setSeaportSelectedTo(seaportSelected);
         handleDialogClose();
     };
+
+    // Graph messages
+    const showGraphDataStatus = () => {
+        // if (graphData) {
+        //     return null;
+        // }
+        return (
+            <div className="ssg-graph-status">
+                <h1>Oh, no! There is no data.<small>Try selecting a route</small></h1>
+            </div>
+        )
+    }
 
     // D3 Graph
     const D3Graph = (props: ID3Graph) => {
@@ -157,8 +188,8 @@ function App() {
             d3.select(event.currentTarget).transition().delay(300).duration(500).attr('fill', 'orange');
         }
 
-        useEffect(
-            () => {
+        useEffect(() => {
+            if (graphData.length > 0) {
                 // Scale X
                 const xScaleDay = mockDataRouteSghRtm.map(entry => entry.day);
                 const xScale = d3.scaleBand()
@@ -218,15 +249,27 @@ function App() {
                 d3Main.selectAll('rect')
                     .on('mouseover', handleMouseOver)
                     .on('mouseout', handleMouseOut);
+            }
+        }, [graphData]);
 
-            // }, [props.data, d3Graph.current]);
-        }, []);
+        if (graphData.length === 0) {
+            return null;
+        }
 
         return (
             <svg className="d3-graph-component" ref={d3Graph}/>
         );
 
     };
+
+    const countryFlagComponent = (seaport: ISeaport | null) => {
+        if (!seaport) {
+            return null;
+        }
+
+        const CountryFlagComponent = seaport?.code.substring(0, 2).split('.').reduce((o, i) => o[i], CountryFlag);
+        return <CountryFlagComponent key={seaport.name}/>
+    }
 
     // Simple Dialog Component
     const SimpleDialog = (props: SimpleDialogProps) => {
@@ -241,18 +284,18 @@ function App() {
                 <DialogTitle id="Select seaport origin">Select <strong>from</strong> seaport</DialogTitle>
                 <List>
                     {seaportList.map((seaport: ISeaport) => {
-                        if (!seaport.code || !seaport.name || seaport.code === seaportSelectedFrom || seaport.code === seaportSelectedTo) {
+                        if (!seaport.code ||
+                            !seaport.name ||
+                            seaport?.code === seaportSelectedFrom?.code ||
+                            seaport?.code === seaportSelectedTo?.code) {
                             return null;
                         }
 
-                        const countryCode = seaport.code.substring(0, 2);
-                        const CountryFlagComponent = countryCode.split('.').reduce((o, i) => o[i], CountryFlag);
-
                         return (
-                            <ListItem button onClick={() => handleDialogSelectedValue(seaport.code)} key={seaport.code}>
+                            <ListItem button onClick={() => handleDialogSelectedValue(seaport)} key={seaport.code}>
                                 <ListItemAvatar>
                                     <Avatar variant="rounded" style={{width: 36, height: 24}}>
-                                        <CountryFlagComponent key={seaport.name}/>
+                                        {countryFlagComponent(seaport)}
                                     </Avatar>
                                 </ListItemAvatar>
                                 <ListItemText primary={seaport.name}/>
@@ -281,62 +324,100 @@ function App() {
                 <main className='ssg-main'>
                     <div>
                         <h2 style={{fontSize: 14}}>Route selection</h2>
-                        <Grid container spacing={2} style={{marginBottom: 15}}>
+                        <Grid container spacing={2} style={{marginBottom: 5}}>
                             <Grid item xs={3}>
                                 <Button
-                                    style={{width: '100%'}}
+                                    style={{width: '100%', height: 48}}
                                     variant='outlined'
                                     color='primary'
+                                    className='ssg-route-select__button'
                                     onClick={() => handleDialogOpen(Seaport.FROM)}
                                 >
-                                    <DirectionsBoat className="ssg-route-select__button"/>
-                                    {seaportSelectedFrom ? seaportSelectedFrom : Seaport.FROM}
+                                    <DirectionsBoat className="ssg-route-select__button-icon"/>
+                                    <span className="ssg-route-select__info-flag">
+                                        {countryFlagComponent(seaportSelectedFrom)}
+                                    </span>
+                                    <div className="ssg-route-select__info">
+                                        <span className="ssg-route-select__info-name">
+                                            {seaportSelectedFrom?.name ? seaportSelectedFrom?.name : Seaport.FROM}
+                                        </span>
+                                        <span className="ssg-route-select__info-code">
+                                            {seaportSelectedFrom?.code ?? seaportSelectedFrom?.code}
+                                        </span>
+                                    </div>
                                 </Button>
                             </Grid>
                             <Grid item xs={3}>
                                 <Button
-                                    style={{width: '100%'}}
+                                    style={{width: '100%', height: 48}}
                                     variant='outlined'
                                     color='primary'
+                                    className='ssg-route-select__button'
                                     onClick={() => handleDialogOpen(Seaport.TO)}
                                 >
                                     <DirectionsBoatOutlined style={{fontSize: '20px', position: 'absolute', left: 10}}/>
-                                    {seaportSelectedTo ? seaportSelectedTo : 'To'}
+                                    <span className="ssg-route-select__info-flag">
+                                        {countryFlagComponent(seaportSelectedTo)}
+                                    </span>
+                                    <div className="ssg-route-select__info">
+                                        <span className="ssg-route-select__info-name">
+                                            {seaportSelectedTo?.name ? seaportSelectedTo?.name : Seaport.TO}
+                                        </span>
+                                        <span className="ssg-route-select__info-code">
+                                            {seaportSelectedTo?.code ?? seaportSelectedTo?.code}
+                                        </span>
+                                    </div>
                                 </Button>
                             </Grid>
                             <Grid item>
                                 <Button
-                                    style={{width: '100%'}}
+                                    style={{width: '100%', height: 48}}
                                     variant='contained'
                                     color='primary'
                                     onClick={() => getGraphData()}
                                     disableElevation
                                     disabled={isSearchDisabled}
                                 >
-                                    Show prices
+                                    Get prices
                                 </Button>
                             </Grid>
-                        </Grid>
-                        <Collapse in={isApiError}>
-                            <Alert
-                                action={
-                                    <IconButton
-                                        aria-label="close"
-                                        color="inherit"
-                                        size="small"
-                                        onClick={() => {
-                                            setIsApiError(false);
-                                        }}
+                            <Grid item>
+                                <Button
+                                    style={{width: 42, minWidth: 42, height: 48}}
+                                    variant='outlined'
+                                    onClick={() => clearSeach()}
+                                    disableElevation
+                                    disabled={isSearchDisabled}
+                                >
+                                    <Clear/>
+                                </Button>
+                            </Grid>
+                            <Grid item>
+                                <Collapse in={isApiError}>
+                                    <Alert
+                                        className="ssg-alert-error"
+                                        severity="error"
+                                        action={
+                                            <IconButton
+                                                aria-label="close"
+                                                color="inherit"
+                                                size="small"
+                                                onClick={() => {
+                                                    setIsApiError(false);
+                                                }}
+                                            >
+                                                <Close fontSize="inherit" />
+                                            </IconButton>
+                                        }
                                     >
-                                        <Close fontSize="inherit" />
-                                    </IconButton>
-                                }
-                            >
-                                {apiErrorMessage}
-                            </Alert>
-                        </Collapse>
+                                        {apiErrorMessage}
+                                    </Alert>
+                                </Collapse>
+                            </Grid>
+                        </Grid>
                         <Paper className="ssg-graph">
                             <D3Graph width={852} height={320}/>
+                            {showGraphDataStatus()}
                         </Paper>
                         <h4>Shipping prices for DATE1 to DATE2</h4>
                     </div>

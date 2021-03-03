@@ -30,23 +30,70 @@ html, body {
   transform: rotate(10deg);
 }
 
-
-
 .ssg-route-select__button {
+  overflow: hidden;
+}
+
+.ssg-route-select__button span.MuiButton-label {
+  justify-content: left;
+  padding-left: 25px;
+}
+.ssg-route-select__button-icon {
   left: 10px;
-  font-size: 20px;
   position: absolute;
 }
 
-
-
-.MuiPaper-root.ssg-graph {
-  line-height: 0;
-  overflow: hidden;
-  position: relative;
-  margin-bottom: 15px;
-  background: linear-gradient(-60deg, rgba(13,8,77,0.1) 0%, rgba(75,115,232,0.1) 100%);
+.ssg-route-select__info {
+  line-height: 1em;
+  text-align: left;
 }
+.ssg-route-select__info-name {
+  display: block;
+}
+
+.ssg-route-select__info-code {
+  display: block;
+  font-size: 30%;
+  font-weight: bold;
+}
+
+.ssg-route-select__info-flag {
+  line-height: 1em;
+  margin-right: 10px;
+}
+  .ssg-route-select__info-flag svg {
+    height: 14px;
+  }
+
+
+
+.ssg-graph {
+  min-height: 320px;
+}
+  .MuiPaper-root.ssg-graph {
+    line-height: 0;
+    overflow: hidden;
+    position: relative;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    background: linear-gradient(-60deg, rgba(13,8,77,0.1) 0%, rgba(75,115,232,0.1) 100%);
+  }
+
+.ssg-graph-status {}
+  .ssg-graph-status > h1 {
+    padding: 0;
+    width: 100%;
+    color: #A9A9B8;
+    margin: 0 auto;
+    line-height: 1.2em;
+    text-align: center;
+    display: inline-block;
+    transform: translateY(150%);
+  }
+  .ssg-graph-status h1 small {
+    display: block;
+  }
+
 .d3-graph-component {
   position: relative;
 }
@@ -58,6 +105,7 @@ html, body {
 }
 
 
+.ssg-alert-error {}
 
 
 .ssg-footer {
