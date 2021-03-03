@@ -230,6 +230,7 @@ function App() {
             d3.select(event.currentTarget).transition().delay(300).duration(500).attr('fill', 'orange');
         }
 
+        // TODO: mean, low and high can be empty!!!
         useEffect(() => {
             if (graphDataLength > 0) {
                 // Scale X

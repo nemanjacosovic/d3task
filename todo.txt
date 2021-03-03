@@ -1,0 +1,27 @@
+[] router picker close with click away
+[] router picker close button
+[] router show prices API response
+- handle errors
+- handle graph update
+- show selected dates
+
+- enable LINE graph showing
+- refactor, extrac graph
+extract 
+
+
+// TODO: mean, low and high can be empty!!!
+
+[] do not render graph if mean, low and high are missing
+[] handle error if low, high or mean is missing
+[] do not clear inputs if there is an error
+[] convert to lines
+[] PNG options? white background
+[] ability to set the dates
+[] CLOSE simple dialog on click away
+[] CLOSE BUTTOn simple dialog
+[] SWITCH button for routes
+[] refactor in 2-3 components
+[] refactor in smaller functions
+[] MOBILE version
+[] Write tests
