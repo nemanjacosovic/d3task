@@ -21,7 +21,7 @@ import {
 } from '@material-ui/core';
 import {saveSvgAsPng} from 'save-svg-as-png';
 import Alert from '@material-ui/lab/Alert';
-import {Clear, Close, DirectionsBoat, DirectionsBoatOutlined, InsertChartOutlined, GetApp} from '@material-ui/icons';
+import {Clear, Close, DirectionsBoat, DirectionsBoatOutlined, InsertChartOutlined, GetApp, SwapHoriz} from '@material-ui/icons';
 import {GraphStatus, Seaport} from "./constants/CommonConstants";
 import API_CONFIG from './config';
 import {mockDataRouteSghRtm} from './mocks/mockDataRouteSghRtm';
@@ -68,6 +68,11 @@ function App() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [dialogOpenType, setDialogOpenType] = useState('');
     const [isSearchDisabled, setIsSearchDisabled] = useState(true);
+    const [isSwapDisabled, setIsSwapDisabled] = useState(true);
+    const [graphDataDay, setGraphDataDay] = useState<any[]>([]);
+    const [graphDataLow, setGraphDataLow] = useState<any[]>([]);
+    const [graphDataMean, setGraphDataMean] = useState<any[]>([]);
+    const [graphDataHigh, setGraphDataHigh] = useState<any[]>([]);
 
     const d3Graph = useRef(null);
 
@@ -95,7 +100,11 @@ function App() {
             setGraphDataRangeStart(graphData[0]?.day);
             // @ts-ignore
             setGraphDataRangeEnd(graphData[graphDataLength - 1]?.day);
+
+            // TODO Case when there is no data in entire range for Low, Mean and/or High
+            // TODO Case when there is data point missing in Low, Mean and/or High
         }
+        parseGraphData();
     }, [graphData])
 
     useEffect(() => {
@@ -106,9 +115,29 @@ function App() {
 
     useEffect(() => {
         if (isApiError) {
-            clearSeach();
+            // clearSeach();
         }
     }, [isApiError]);
+
+    // PARSE Graph Data
+    const parseGraphData = () => {
+        const dataDay: any[] = [];
+        const dataLow: any[] = [];
+        const dataMean: any[] = [];
+        const dataHigh: any[] = [];
+
+        graphData.map((dataPoint: IGraphData) => {
+            dataDay.push(dataPoint?.day);
+            dataLow.push(dataPoint?.low);
+            dataMean.push(dataPoint?.mean);
+            dataHigh.push(dataPoint?.high);
+        })
+
+        setGraphDataDay(dataDay);
+        setGraphDataLow(dataLow);
+        setGraphDataMean(dataMean);
+        setGraphDataHigh(dataHigh);
+    }
 
     // GET Seaports
     const getSeaportList = () => axiosToAWS
@@ -123,12 +152,14 @@ function App() {
 
     // CLEAR Search
     const clearSeach = () => {
+        setIsApiError(false);
         setGraphData([]);
         setGraphDataRangeStart('');
         setGraphDataRangeEnd('');
         setSeaportSelectedFrom(null);
         setSeaportSelectedTo(null);
         setIsSearchDisabled(true);
+        setIsSwapDisabled(true);
     }
 
     // GET Graph Data
@@ -137,6 +168,7 @@ function App() {
             return null;
         }
 
+        setIsApiError(false);
         setIsGetGraphDataStarted(true);
 
         return axiosToAWS
@@ -154,7 +186,11 @@ function App() {
                 setApiErrorMessage(error.message);
             })
             .then(() => {
-                setIsGetGraphDataEnded(true);
+                // setIsGetGraphDataEnded(true);
+                setTimeout(() => {
+                    console.log(graphData);
+                }, 3000)
+
             });
     };
 
@@ -173,7 +209,15 @@ function App() {
     // Dialog SELECTED
     const handleDialogSelectedValue = (seaportSelected: ISeaport) => {
         dialogOpenType === Seaport.FROM ? setSeaportSelectedFrom(seaportSelected) : setSeaportSelectedTo(seaportSelected);
+        setIsSwapDisabled(false);
         handleDialogClose();
+    };
+
+    // Seaport SWITCH
+    const handleSwitchSeaports = () => {
+        setSeaportSelectedFrom(seaportSelectedTo);
+        setSeaportSelectedTo(seaportSelectedFrom);
+        //[setSeaportSelectedFrom, setSeaportSelectedTo] = [seaportSelectedTo, seaportSelectedFrom]
     };
 
     // Graph messages
@@ -241,11 +285,14 @@ function App() {
                     .paddingInner(0.2)
                     .paddingOuter(0.2);
 
-                // Scale Y
+                // Scale Y LOW
                 const yScaleLow = d3.max(mockDataRouteSghRtm.map(entry => entry.high));
                 const yScale = d3.scaleLinear()
                     .domain([0, yScaleLow ?? graphHeight])
                     .range([graphHeight, 0]);
+
+                // Scale Y MEAN
+                // Scale Y HIGH
 
                 // MAIN
                 const d3Main = d3.select(d3Graph.current);
@@ -327,9 +374,22 @@ function App() {
         }
 
         return (
-            <Dialog aria-labelledby="Select seaport" open={isDialogOpen}>
-                <DialogTitle id="Select seaport origin">Select <strong>from</strong> seaport</DialogTitle>
-                <List>
+            <Dialog aria-labelledby="Select seaport" className="ssg-dialog" open={isDialogOpen} onClose={handleDialogClose}>
+                <DialogTitle className="ssg-dialog__title" id="Select seaport origin">Select <strong>from</strong> seaport
+                    <Button
+                        aria-label="close"
+                        className="ssg-dialog__title-close"
+                        variant="contained"
+                        color="default"
+                        disableElevation
+                        onClick={() => {
+                            setIsDialogOpen(false);
+                        }}
+                    >
+                        <Close fontSize="inherit" />
+                    </Button>
+                </DialogTitle>
+                <List className="ssg-dialog__list">
                     {seaportList.map((seaport: ISeaport) => {
                         if (!seaport.code ||
                             !seaport.name ||
@@ -370,8 +430,8 @@ function App() {
             <Paper className='ssg'>
                 <main className='ssg-main'>
                     <div>
-                        <h2 style={{fontSize: 14}}>Route selection</h2>
-                        <Grid container spacing={2} style={{marginBottom: 5}}>
+                        <h2 className="ssg-main__title">Route selection</h2>
+                        <Grid container spacing={2} className="ssg-main__search-grid">
                             <Grid item xs={3}>
                                 <Button
                                     style={{width: '100%', height: 48}}
@@ -393,6 +453,15 @@ function App() {
                                         </span>
                                     </div>
                                 </Button>
+                            </Grid>
+                            <Grid item>
+                                <Button
+                                    variant='outlined'
+                                    color='primary'
+                                    className='ssg-route-select__button-swap'
+                                    onClick={() => handleSwitchSeaports()}
+                                    disabled={isSwapDisabled}
+                                ><SwapHoriz/></Button>
                             </Grid>
                             <Grid item xs={3}>
                                 <Button
@@ -416,7 +485,7 @@ function App() {
                                     </div>
                                 </Button>
                             </Grid>
-                            <Grid item>
+                            <Grid item xs={2}>
                                 <Button
                                     style={{width: '100%', height: 48}}
                                     variant='contained'
@@ -430,38 +499,36 @@ function App() {
                             </Grid>
                             <Grid item>
                                 <Button
-                                    style={{width: 42, minWidth: 42, height: 48}}
                                     variant='outlined'
+                                    color='secondary'
+                                    className='ssg-route-select__button-clear-search'
                                     onClick={() => clearSeach()}
-                                    disableElevation
                                     disabled={isSearchDisabled}
-                                >
-                                    <Clear/>
-                                </Button>
-                            </Grid>
-                            <Grid item>
-                                <Collapse in={isApiError}>
-                                    <Alert
-                                        className="ssg-alert-error"
-                                        severity="error"
-                                        action={
-                                            <IconButton
-                                                aria-label="close"
-                                                color="inherit"
-                                                size="small"
-                                                onClick={() => {
-                                                    setIsApiError(false);
-                                                }}
-                                            >
-                                                <Close fontSize="inherit" />
-                                            </IconButton>
-                                        }
-                                    >
-                                        {apiErrorMessage}
-                                    </Alert>
-                                </Collapse>
+                                ><Clear/></Button>
                             </Grid>
                         </Grid>
+                        <div className="ssg-alert__wrapper">
+                            <Collapse in={isApiError}>
+                                <Alert
+                                    className="ssg-alert__error"
+                                    severity="error"
+                                    action={
+                                        <IconButton
+                                            aria-label="close"
+                                            color="inherit"
+                                            size="small"
+                                            onClick={() => {
+                                                setIsApiError(false);
+                                            }}
+                                        >
+                                            <Close fontSize="inherit" />
+                                        </IconButton>
+                                    }
+                                >
+                                    {apiErrorMessage}
+                                </Alert>
+                            </Collapse>
+                        </div>
                         <Paper className="ssg-graph">
                             <D3Graph width={852} height={320}/>
                             {showGraphDataStatus()}
@@ -473,7 +540,6 @@ function App() {
                                 </Grid>
                                 <Grid item xs={4} style={{textAlign: 'right'}}>
                                     <Button
-                                        // style={{width: 42, minWidth: 42, height: 48}}
                                         variant='outlined'
                                         onClick={() => saveGraphToPng()}
                                         disableElevation

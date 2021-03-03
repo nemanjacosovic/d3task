@@ -38,6 +38,22 @@ html, body {
   justify-content: left;
   padding-left: 25px;
 }
+
+.ssg-route-select__button-swap.MuiButton-root {
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  transform: translateY(6px);
+}
+
+.ssg-route-select__button-clear-search.MuiButton-root {
+  padding: 0;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+}
+
 .ssg-route-select__button-icon {
   left: 10px;
   position: absolute;
@@ -65,7 +81,13 @@ html, body {
     height: 14px;
   }
 
-
+.ssg-main {}
+.ssg-main__title {
+  font-size: 14px;
+}
+.ssg-main__search-grid.MuiGrid-container {
+  margin-bottom: 5px;
+}
 
 .ssg-graph {
   min-height: 320px;
@@ -105,8 +127,38 @@ html, body {
 }
 
 
-.ssg-alert-error {}
+.ssg-dialog {}
+.ssg-dialog__title.MuiDialogTitle-root {
+  padding-right: 60px;
+}
+.ssg-dialog__list.MuiList-root{
+  padding: 0 0 30px;
+}
 
+.ssg-dialog__list.MuiList-root > .MuiListItem-button{
+  padding-left: 30px;
+}
+
+.ssg-dialog__title-close.MuiButtonBase-root {
+  top: 19px;
+  right: 20px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  position: absolute;
+}
+
+.d3-graph-component + .ssg-graph-status {
+  display: none;
+}
+
+.ssg-dialog__title-close span.MuiButton-label {
+  font-size: 20px;
+}
+
+.ssg-alert__wrapper {}
+.ssg-alert__error {}
 
 .ssg-footer {
   font-size: 11px;
