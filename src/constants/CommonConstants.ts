@@ -22,12 +22,14 @@ export enum Text {
 export enum GraphStatus {
     INITIAL = 'SSG Dashboard',
     SELECT_ROUTE = 'Select a route.',
-    FETCH_STARTED = 'Loading...',
+    FETCH_IN_PROGRESS = 'Working...',
     FETCH_FAILED = 'Oh, no! Something went wrong.',
-    FETCH_NO_RECORDS = 'Sorry, no records found.',
+    FETCH_RECORDS_NOT_FOUND = 'Sorry, no records found.',
+    FETCH_RECORDS_INCOMPLETE = 'Sorry, records are incomplete.',
     CLEARED = 'Dashboard is now cleared.',
     SELECT_ROUTE_OTHER = 'Try a different route.',
-    EMPTY = ''
+    EMPTY = '',
+    PLEASE_WAIT = 'Please wait.'
 }
 
 export default Seaport;

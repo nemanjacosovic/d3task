@@ -40,7 +40,7 @@ import {
 } from '@material-ui/icons';
 
 // Constants
-import { GraphStatus, Seaport, Text } from "./constants/CommonConstants";
+import { GraphStatus, Seaport, Text } from './constants/CommonConstants';
 
 // Utils and Config
 import API_CONFIG from './config';
@@ -82,7 +82,9 @@ interface ID3Graph {
 function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [isApiError, setIsApiError] = useState(false);
+    const [isAlertDismissed, setIsAlertDismissed] = useState(false);
     const [isGetGraphDataActive, setIsGetGraphDataActive] = useState(false);
+    const [isGraphDataIncomplete, setisGraphDataIncomplete] = useState(false);
     const [apiErrorMessage, setApiErrorMessage] = useState('');
     const [seaportList, setSeaportList] = useState([]);
     const [graphData, setGraphData] = useState<IGraphData[]>([]);
@@ -127,11 +129,13 @@ function App() {
         }
     }, [seaportSelectedFrom, seaportSelectedTo]);
 
-    // useEffect(() => {
-        // TODO Case when there is no data in entire range for Low, Mean and/or High
-        // TODO Case when there is data point missing in Low, Mean and/or High
-        // console.log(graphDataDay, graphDataLow, graphDataMean, graphDataHigh);
-    // }, [graphDataDay, graphDataLow, graphDataMean, graphDataHigh])
+    // Suggestion: Case when there is data point missing in Low, Mean and/or High
+    useEffect(() => {
+        if (graphDataLength > 0) {
+            const parsedGraphDataGroup = () => [graphDataDay, graphDataLow, graphDataMean, graphDataHigh].map((graphDataSet) => graphDataSet.includes(null));
+            setisGraphDataIncomplete(parsedGraphDataGroup().includes(true));
+        }
+    }, [graphDataDay, graphDataLow, graphDataMean, graphDataHigh]);
 
     // SETUP API calls
     const axiosToAWS = axios.create({
@@ -186,6 +190,7 @@ function App() {
     // CLEAR Search
     const clearSearch = () => {
         setIsApiError(false);
+        setIsAlertDismissed(true);
         setGraphData([]);
         setSelectedDateFrom(null);
         setSelectedDateTo(null);
@@ -241,6 +246,12 @@ function App() {
         setSeaportSelectedTo(seaportSelectedFrom);
     };
 
+    // Dismissed alert
+    const handleAlertDismiss = () => {
+        setIsApiError(false);
+        setIsAlertDismissed(true);
+    };
+
     // D3 Graph
     const D3Graph = (props: ID3Graph) => {
         const { height, width, className } = props;
@@ -248,7 +259,6 @@ function App() {
         const graphWidth = width - graphMargins.right - graphMargins.left;
         const graphHeight = height - graphMargins.top - graphMargins.bottom;
 
-        // TODO: mean, low and high can be empty!!!
         useEffect(() => {
             if (graphDataLength !== 0) {
                 // X scale
@@ -370,22 +380,17 @@ function App() {
 
         }, [graphData, graphDataLength]);
 
-        if (graphData.length === 0) {
-            return null;
-        }
-
         return (
             <svg className={className} ref={d3Graph}/>
         );
-
     };
 
     // HEADER
     const _renderHeader = () => {
         return (
-            <div className="ssg-header">
-                <h1 className="ssg-header__title">{Text.PAGE_TITLE}<small>{Text.PAGE_SUBTITLE}</small>
-                    <InsertChartOutlined className="ssg-header__title-icon"/>
+            <div className='ssg-header'>
+                <h1 className='ssg-header__title'>{Text.PAGE_TITLE}<small>{Text.PAGE_SUBTITLE}</small>
+                    <InsertChartOutlined className='ssg-header__title-icon'/>
                 </h1>
             </div>
         )
@@ -395,8 +400,8 @@ function App() {
     const _renderRouteSelector = () => {
         return (
             <>
-                <h2 className="ssg-main__title">{Text.SECTION_ROUTE_SELECTOR}</h2>
-                <Grid container spacing={2} className="ssg-main__route-selector">
+                <h2 className='ssg-main__title'>{Text.SECTION_ROUTE_SELECTOR}</h2>
+                <Grid container spacing={2} className='ssg-main__route-selector'>
                     <Grid item xs={3}>
                         {_renderRouteSelectorButton(Seaport.FROM, seaportSelectedFrom)}
                     </Grid>
@@ -416,7 +421,7 @@ function App() {
                     </Grid>
                     <Grid item xs={3}>
                         <Button
-                            className="ssg-main__route-selector-button--adjust"
+                            className='ssg-main__route-selector-button--adjust'
                             color='primary'
                             disabled={isSearchDisabled}
                             disableElevation
@@ -461,12 +466,12 @@ function App() {
                 variant='outlined'
             >
                 {renderShipIcon()}
-                <span className="ssg-main__route-selector-info-flag">{countryFlagComponent(seaportRouteSelected)}</span>
-                <div className="ssg-main__route-selector-info-text">
-                    <span className="ssg-main__route-selector-info-name">
+                <span className='ssg-main__route-selector-info-flag'>{countryFlagComponent(seaportRouteSelected)}</span>
+                <div className='ssg-main__route-selector-info-text'>
+                    <span className='ssg-main__route-selector-info-name'>
                         {seaportRouteSelected?.name ? seaportRouteSelected?.name : seaportRoute}
                     </span>
-                    <span className="ssg-main__route-selector-info-text-code">
+                    <span className='ssg-main__route-selector-info-text-code'>
                         {seaportRouteSelected?.code ?? seaportRouteSelected?.code}
                     </span>
                 </div>
@@ -489,21 +494,19 @@ function App() {
     // ERRORS
     const _renderRouteSelectorErrors = () => {
         return (
-            <div className="ssg-main__alert">
+            <div className='ssg-main__alert'>
                 <Collapse in={isApiError}>
                     <Alert
-                        className="ssg-main__alert-error"
-                        severity="error"
+                        className='ssg-main__alert-error'
+                        severity='error'
                         action={
                             <IconButton
-                                aria-label="close"
-                                color="inherit"
-                                size="small"
-                                onClick={() => {
-                                    setIsApiError(false);
-                                }}
+                                aria-label='close'
+                                color='inherit'
+                                size='small'
+                                onClick={() => handleAlertDismiss()}
                             >
-                                <Close fontSize="inherit" />
+                                <Close fontSize='inherit' />
                             </IconButton>
                         }
                     >
@@ -517,8 +520,8 @@ function App() {
     // ENTER GRAPH
     const _renderPrimaryGraph = () => {
         return (
-            <Paper className="ssg-main__graph">
-                <D3Graph width={852} height={320} className="ssg-main__graph-d3js"/>
+            <Paper className='ssg-main__graph'>
+                {graphData.length === 0 || isGraphDataIncomplete ? null : <D3Graph width={852} height={320} className='ssg-main__graph-d3js'/> }
                 {_renderGraphDataStatusMessage()}
             </Paper>
         )
@@ -529,37 +532,29 @@ function App() {
         let statusTextPrimary = GraphStatus.INITIAL;
         let statusTextSecondary = GraphStatus.SELECT_ROUTE;
 
-        // if (isGetGraphDataStarted) {
-        //     statusTextPrimary = GraphStatus.FETCH_STARTED;
-        //     statusTextSecondary = GraphStatus.EMPTY;
-        // }
-        //
-        // if (isGetGraphDataStarted && isGetGraphDataEnded && graphDataLength === 0) {
-        //     statusTextPrimary = GraphStatus.FETCH_NO_RECORDS;
-        //     statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
-        // }
-        //
-        // if (isGetGraphDataStarted && isGetGraphDataEnded && isApiError) {
-        //     statusTextPrimary = GraphStatus.FETCH_FAILED;
-        //     statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
-        // }
+        if (isGraphDataIncomplete && !isGetGraphDataActive) {
+            statusTextPrimary = GraphStatus.FETCH_RECORDS_INCOMPLETE;
+            statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
+        }
 
-        // if () {
-        //     statusTextPrimary = GraphStatus.CLEARED;
-        // }
+        if (!isApiError && !isGetGraphDataActive && graphDataLength === 0 && !isAlertDismissed) {
+            statusTextPrimary = GraphStatus.FETCH_RECORDS_NOT_FOUND;
+            statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
+        }
 
         if (isApiError) {
             statusTextPrimary = GraphStatus.FETCH_FAILED;
             statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
         }
 
-        if (graphDataLength > 0) {
-            return null;
+        if (isGetGraphDataActive) {
+            statusTextPrimary = GraphStatus.FETCH_IN_PROGRESS;
+            statusTextSecondary = GraphStatus.PLEASE_WAIT;
         }
 
         return (
-            <div className="ssg-main__graph-status-message">
-                <h1 className="ssg-main__graph-status-message-title">{statusTextPrimary}<small className="ssg-main__graph-status-message-subtitle">{statusTextSecondary}</small></h1>
+            <div className='ssg-main__graph-status-message'>
+                <h1 className='ssg-main__graph-status-message-title'>{statusTextPrimary}<small className='ssg-main__graph-status-message-subtitle'>{statusTextSecondary}</small></h1>
             </div>
         )
     }
@@ -577,16 +572,16 @@ function App() {
         }
 
         return (
-            <Collapse in={graphDataLength > 0} className="ssg-options">
+            <Collapse in={graphDataLength > 0} className='ssg-options'>
                 <Grid container spacing={5}>
                     <Grid item xs={9}>
                         <MuiPickersUtilsProvider utils={DateFnsUtils}>
-                            <Grid container className="ssg-options__time-range">
+                            <Grid container className='ssg-options__time-range'>
                                 {Text.DATE_RANGE_FROM}
                                 <KeyboardDatePicker
                                     {...commonProps}
-                                    variant="inline"
-                                    margin="normal"
+                                    variant='inline'
+                                    margin='normal'
                                     value={selectedDateFrom}
                                     onChange={handleDateChangeFrom}
                                     KeyboardButtonProps={{
@@ -596,8 +591,8 @@ function App() {
                                 {Text.DATE_RANGE_TO}
                                 <KeyboardDatePicker
                                     {...commonProps}
-                                    variant="inline"
-                                    margin="normal"
+                                    variant='inline'
+                                    margin='normal'
                                     value={selectedDateTo}
                                     onChange={handleDateChangeTo}
                                     KeyboardButtonProps={{
@@ -616,7 +611,7 @@ function App() {
                             variant='contained'
                             aria-label={Text.SECTION_ROUTE_SAVE_AS_PNG}
                         >
-                            <GetApp className="ssg-options__button--icon"/>
+                            <GetApp className='ssg-options__button--icon'/>
                             {Text.SECTION_ROUTE_SAVE_AS_PNG}
                         </Button>
                     </Grid>
@@ -630,7 +625,7 @@ function App() {
     // FOOTER
     const _renderFooter = () => {
         return (
-            <footer className="ssg-footer">
+            <footer className='ssg-footer'>
                 <span>Copyright &copy; 2021 {Text.PAGE_TITLE} by Auxburgo</span>
             </footer>
         )
@@ -646,12 +641,6 @@ function App() {
         return saveSvgAsPng(document.querySelector('.ssg-main__graph-d3js'),`ssg-export-${setFileNamePart}.png`);
     }
 
-    // const _renderLoading = () => {
-    //     return (
-    //         <div className="ssg-loading"><CircularProgress /> Loading...</div>
-    //     )
-    // };
-
     // ROUTE SELECT DIALOG
     const _renderRouteSelectDialog = () => {
         if (!isDialogOpen || seaportList.length === 0) {
@@ -659,22 +648,20 @@ function App() {
         }
 
         return (
-            <Dialog aria-labelledby="Select seaport" className="ssg-dialog" open={isDialogOpen} onClose={handleDialogClose}>
-                <DialogTitle className="ssg-dialog__title" id="Select seaport origin">Select <strong>from</strong> seaport
+            <Dialog aria-labelledby='Select seaport' className='ssg-dialog' open={isDialogOpen} onClose={handleDialogClose}>
+                <DialogTitle className='ssg-dialog__title' id='Select seaport origin'>Select <strong>from</strong> seaport
                     <Button
-                        aria-label="close"
-                        className="ssg-dialog__title-close"
-                        variant="contained"
-                        color="default"
+                        aria-label='close'
+                        className='ssg-dialog__title-close'
+                        variant='contained'
+                        color='default'
                         disableElevation
-                        onClick={() => {
-                            setIsDialogOpen(false);
-                        }}
+                        onClick={() => handleDialogClose()}
                     >
-                        <Close fontSize="inherit" />
+                        <Close fontSize='inherit' />
                     </Button>
                 </DialogTitle>
-                <List className="ssg-dialog__list">
+                <List className='ssg-dialog__list'>
                     {seaportList.map((seaport: ISeaport) => {
                         if (!seaport.code ||
                             !seaport.name ||
@@ -686,7 +673,7 @@ function App() {
                         return (
                             <ListItem button onClick={() => handleDialogSelectedValue(seaport)} key={seaport.code}>
                                 <ListItemAvatar>
-                                    <Avatar variant="rounded" style={{width: 36, height: 24}}>
+                                    <Avatar variant='rounded' style={{width: 36, height: 24}}>
                                         {countryFlagComponent(seaport)}
                                     </Avatar>
                                 </ListItemAvatar>
@@ -701,12 +688,12 @@ function App() {
 
     if (isLoading) {
         return (
-            <div className="ssg-loading">
-                <div className="ssg-loading__container">
-                    <span className="ssg-loading__text">
+            <div className='ssg-loading'>
+                <div className='ssg-loading__container'>
+                    <span className='ssg-loading__text'>
                         {Text.LOADING}
                     </span>
-                    <CircularProgress className="ssg-loading__spinner"/>
+                    <CircularProgress className='ssg-loading__spinner'/>
                 </div>
             </div>
         )
@@ -714,10 +701,10 @@ function App() {
 
     return (
         <div className={`ssg-wrapper bg-ver-0 bg-ver-${randomNumber(4)}`}>
-            <div className="ssg">
-                <Container maxWidth="md" >
+            <div className='ssg'>
+                <Container maxWidth='md' >
                     {_renderHeader()}
-                    <Paper className="ssg-main">
+                    <Paper className='ssg-main'>
                         {_renderRouteSelector()}
                         {_renderRouteSelectorErrors()}
                         {_renderPrimaryGraph()}
