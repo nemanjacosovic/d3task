@@ -1,4 +1,4 @@
-declare module "save-svg-as-png" {
+declare module 'save-svg-as-png' {
   export function prepareSvg(el: any, options?: any, done?: any): void;
   export function svgAsDataUri(el: any, options?: any, done?: any): void;
   export function svgAsPngUri(el: any, options?: any, done?: any): void;

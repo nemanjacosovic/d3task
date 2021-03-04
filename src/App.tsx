@@ -59,6 +59,12 @@ interface IDate {
     value: number
 }
 
+interface IMarkerData {
+    rValue: number,
+    cyValue: number[],
+    fillValue: string
+}
+
 interface IGraphData {
     day: string;
     low: number;
@@ -98,8 +104,9 @@ function App() {
 
     useEffect(() => {
         if (seaportList.length === 0) {
-            getSeaportList();
-            setIsLoading(false);
+            getSeaportList().then(() => {
+                setIsLoading(false);
+            });
         }
 
         setGraphDataLength(graphData.length);
@@ -120,11 +127,11 @@ function App() {
         }
     }, [seaportSelectedFrom, seaportSelectedTo]);
 
-    useEffect(() => {
+    // useEffect(() => {
         // TODO Case when there is no data in entire range for Low, Mean and/or High
         // TODO Case when there is data point missing in Low, Mean and/or High
         // console.log(graphDataDay, graphDataLow, graphDataMean, graphDataHigh);
-    }, [graphDataDay, graphDataLow, graphDataMean, graphDataHigh])
+    // }, [graphDataDay, graphDataLow, graphDataMean, graphDataHigh])
 
     // SETUP API calls
     const axiosToAWS = axios.create({
@@ -146,7 +153,8 @@ function App() {
         });
 
     // CLEAR Search
-    const clearSeach = () => {
+    const clearSearch = () => {
+        // d3.select(d3Graph.current).remove();
         setIsApiError(false);
         setGraphData([]);
         setSelectedDateFrom(null);
@@ -235,160 +243,143 @@ function App() {
     // D3 Graph
     const D3Graph = (props: ID3Graph) => {
         const { height, width, className } = props;
-        const graphMargins = {
-            top: 15,
-            right: 30,
-            bottom: 60,
-            left: 60
-        }
-
+        const graphMargins = { top: 15, right: 30, bottom: 60, left: 60 }
         const graphWidth = width - graphMargins.right - graphMargins.left;
         const graphHeight = height - graphMargins.top - graphMargins.bottom;
 
-        //@ts-ignore
-        const handleMouseOver = (event, d) => {
-            d3.select(event.currentTarget).transition().duration(300).attr('fill', 'deepskyblue');
-        }
-
-        //@ts-ignore
-        const handleMouseOut = (event, d) => {
-            d3.select(event.currentTarget).transition().delay(300).duration(500).attr('fill', 'orange');
-        }
-
         // TODO: mean, low and high can be empty!!!
         useEffect(() => {
-            if (graphDataLength > 0) {
-                // Scale X
+            if (graphDataLength !== 0) {
+                // X scale
                 const xScale = d3.scaleTime()
                     .domain([new Date(graphDataDay[0]), new Date(graphDataDay[graphDataDay.length - 1])])
                     .range([0, graphWidth]);
 
-                // LOW
+                console.log('xScale');
+
+                // Y scale
                 const yScaleLow = d3.max(graphDataLow);
-                const yScaleMean = d3.max(graphDataMean);
                 const yScaleHigh = d3.max(graphDataHigh);
                 const yScale = d3.scaleLinear()
                     .domain([yScaleLow - 100, yScaleHigh + 100])
                     .range([graphHeight, 0]);
 
+                console.log('yScale');
 
-
-                // MAIN
+                // Main node
                 const d3Main = d3.select(d3Graph.current)
                     .attr('width', width)
                     .attr('height', height);
 
-                // MAIN Container
+                console.log('Main node');
+
+                // Entry node
                 const svgGraph = d3Main
                     .append('g')
                     .attr('width', graphWidth)
                     .attr('height', graphHeight)
                     .attr('transform', `translate(${graphMargins.left}, ${graphMargins.top})`);
 
-                // Bind the data
-                console.log(svgGraph)
-                // svgGraph.data(graphData)
-                //     .enter()
-                //     .append('g')
-                //     .append('path')
-                //     .attr('stroke', 'steelblue')
-                //     .attr('stroke-width', 2)
-                //     .attr('fill', 'none')
+                console.log('Entry node');
 
-                // Axis X and Y
-                const xAxisGroup = d3Main
-                    .append('g')
-                    .attr('class', 'x-axis')
+                // X axis
+                const xAxisGroup = d3Main.append('g')
                     .attr('transform', `translate(${graphMargins.left}, ${graphHeight + graphMargins.top})`)
-
                 const xAxis = d3.axisBottom(xScale);
 
-                const yAxisGroup = d3Main.append('g')
-                    .attr('class', 'y-axis')
-                    .attr('transform', `translate(${graphMargins.left}, ${graphMargins.top})`);
+                xAxisGroup.call(xAxis);
 
+                console.log('x axis');
+
+                // Y axis
+                const yAxisGroup = d3Main.append('g')
+                    .attr('transform', `translate(${graphMargins.left}, ${graphMargins.top})`);
                 const yAxis = d3.axisLeft(yScale)
                     .ticks(6)
                     .tickFormat(d => `${d} €`);
 
-                xAxisGroup.call(xAxis);
                 yAxisGroup.call(yAxis);
 
+                console.log('y axis');
 
-                // Dots
-                const dots = svgGraph.selectAll('circle')
+                // Markers
+                const markers = svgGraph.selectAll('circle')
                     .data(graphData)
 
-                dots.enter()
-                    .append('circle')
-                    .attr('r', 3)
-                    .attr('cx', (d, i, n) => xScale(new Date(graphDataDay[i])))
-                    .attr('cy', (d, i, n) => yScale(graphDataLow[i]))
-                    .attr('fill', '#028090')
+                const makerParserData = [
+                    {
+                        rValue: 3,
+                        cyValue: graphDataLow,
+                        color: '#028090',
+                        lineStroke: 1
+                    },
+                    {
+                        rValue: 3,
+                        cyValue: graphDataMean,
+                        color: '#DEB841',
+                        lineStroke: 1
+                    },
+                    {
+                        rValue: 3,
+                        cyValue: graphDataHigh,
+                        color: '#F45B69',
+                        lineStroke: 1
+                    }
+                ];
 
-                dots.enter()
-                    .append('circle')
-                    .attr('r', 3)
-                    .attr('cx', (d, i, n) => xScale(new Date(graphDataDay[i])))
-                    .attr('cy', (d, i, n) => yScale(graphDataMean[i]))
-                    .attr('fill', '#DEB841')
+                makerParserData.map(markerData => {
+                    markers.enter()
+                        .append('circle')
+                        .attr('r', markerData.rValue)
+                        .attr('cx', (d, i, n) => xScale(new Date(graphDataDay[i])))
+                        .attr('cy', (d, i, n) => yScale(markerData.cyValue[i]))
+                        .attr('fill', markerData.color)
 
-                dots.enter()
-                    .append('circle')
-                    .attr('r', 3)
-                    .attr('cx', (d, i, n) => xScale(new Date(graphDataDay[i])))
-                    .attr('cy', (d, i, n) => yScale(graphDataHigh[i]))
-                    .attr('fill', '#F45B69')
+                    d3.line()
+                        .x((d, i) => xScale(new Date(graphDataDay[i])))
+                        .y((d, i) => yScale(markerData.cyValue[i]));
 
-                // Line
-                const setLine = d3.line()
-                    .x((d, i) => xScale(new Date(graphDataDay[i])))
-                    .y((d, i) => yScale(graphDataLow[i]));
-
-                const setLine2 = d3.line()
-                    .x((d, i) => xScale(new Date(graphDataDay[i])))
-                    .y((d, i) => yScale(graphDataMean[i]));
-
-                const setLine3 = d3.line()
-                    .x((d, i) => xScale(new Date(graphDataDay[i])))
-                    .y((d, i) => yScale(graphDataHigh[i]));
-
-                svgGraph.append('path')
-                    .data([graphData])
-                    .attr('fill', 'none')
-                    .attr('stroke', '#028090')
-                    .attr('stroke-width', 1)
-                    //@ts-ignore
-                    .attr('d', setLine)
-
-                svgGraph.append('path')
-                    .data([graphData])
-                    .attr('fill', 'none')
-                    .attr('stroke', '#DEB841')
-                    .attr('stroke-width', 1)
-                    //@ts-ignore
-                    .attr('d', setLine2)
-
-                svgGraph.append('path')
-                    .data([graphData])
-                    .attr('fill', 'none')
-                    .attr('stroke', '#F45B69')
-                    .attr('stroke-width', 1)
-                    //@ts-ignore
-                    .attr('d', setLine3)
-
-
+                    d3Main.append('path')
+                        .attr('fill', 'none')
+                        .attr('stroke', markerData.color)
+                        .attr('stroke-width', markerData.lineStroke)
+                        .attr('d', function(){
+                            return d3.line()
+                                .x(function(d, i) { return xScale(new Date(graphDataDay[i])) + graphMargins.left; })
+                                .y(function(d, i) { return yScale(markerData.cyValue[i]) + graphMargins.top; })
+                                (markerData.cyValue)
+                        })
+                });
 
                 // Adjust X Axis
                 xAxisGroup.selectAll('text')
                     .attr('transform', 'rotate(-30)')
                     .attr('text-anchor', 'end')
 
-                // d3Main.selectAll('rect')
-                //     .on('mouseover', handleMouseOver)
-                //     .on('mouseout', handleMouseOut);
+                // Hover IN
+                const handleMouseOver = (event: { currentTarget: any; }) => {
+                    d3.select(event.currentTarget)
+                        .transition()
+                        .duration(300)
+                        .attr('r', 6);
+                }
+
+                // Hover OUT
+                const handleMouseOut = (event: { currentTarget: any; }) => {
+                    d3.select(event.currentTarget)
+                        .transition()
+                        .delay(300)
+                        .duration(500)
+                        .attr('r', 3);
+                }
+
+
+                d3Main.selectAll('circle')
+                    .on('mouseover', handleMouseOver)
+                    .on('mouseleave', handleMouseOut);
             }
-        }, [graphData]);
+
+        }, [graphData, graphDataLength]);
 
         if (graphData.length === 0) {
             return null;
@@ -451,7 +442,7 @@ function App() {
                             className='ssg-main__route-selector-button-clear'
                             color='default'
                             disabled={isSwapDisabled}
-                            onClick={() => clearSeach()}
+                            onClick={() => clearSearch()}
                             variant='outlined'
                         >
                             <Clear/>

@@ -229,51 +229,46 @@ html, body, #root {
     text-align: center;
     border-radius: 3px;
     display: inline-block;
-    background: rgba(233, 234, 243, 0.3);
+    background: rgba(233, 234, 243, 0.5);
   }
 }
 
-.ssg-graph {
-  min-height: 320px;
-}
-  .MuiPaper-root.ssg-graph {
-    line-height: 0;
-    overflow: hidden;
-    position: relative;
-    margin-top: 15px;
-    margin-bottom: 15px;
-    background: linear-gradient(-60deg, rgba(13,8,77,0.1) 0%, rgba(75,115,232,0.1) 100%);
+// Dialog
+.ssg-dialog {
+  &__title {
+    &.MuiDialogTitle-root {
+      padding-right: 60px;
+    }
+
+    &-close {
+      &.MuiButtonBase-root {
+        top: 19px;
+        right: 20px;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        position: absolute;
+      }
+
+      &.MuiButton-label {
+        font-size: 20px;
+      }
+    }
   }
 
-.ssg-dialog {}
-.ssg-dialog__title.MuiDialogTitle-root {
-  padding-right: 60px;
-}
-.ssg-dialog__list.MuiList-root{
-  padding: 0 0 30px;
+  &__list {
+    &.MuiList-root{
+      padding: 0 0 30px;
+
+      & > .MuiListItem-button {
+        padding-left: 30px;
+      }
+    }
+  }
 }
 
-.ssg-dialog__list.MuiList-root > .MuiListItem-button{
-  padding-left: 30px;
-}
-
-.ssg-dialog__title-close.MuiButtonBase-root {
-  top: 19px;
-  right: 20px;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  position: absolute;
-}
-
+// Helper
 .d3-graph-component + .ssg-graph-status {
   display: none;
 }
-
-.ssg-dialog__title-close span.MuiButton-label {
-  font-size: 20px;
-}
-
-.ssg-alert__wrapper {}
-.ssg-alert__error {}
