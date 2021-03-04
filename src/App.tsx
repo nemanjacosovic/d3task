@@ -1,7 +1,12 @@
 import React, {useEffect, useRef, useState} from 'react';
+
 import axios from 'axios';
 import * as d3 from 'd3';
-import * as CountryFlag from 'country-flag-icons/react/3x2';
+import { v4 as uuidv4 } from 'uuid';
+import { saveSvgAsPng } from 'save-svg-as-png';
+
+import CountryFlag from 'country-flag-icons/react/3x2';
+import DateFnsUtils from '@date-io/date-fns';
 
 import {
     Avatar,
@@ -17,17 +22,33 @@ import {
     ListItem,
     ListItemAvatar,
     ListItemText,
-    Paper,
+    Paper
 } from '@material-ui/core';
-import {saveSvgAsPng} from 'save-svg-as-png';
 import Alert from '@material-ui/lab/Alert';
-import {Clear, Close, DirectionsBoat, DirectionsBoatOutlined, InsertChartOutlined, GetApp, SwapHoriz} from '@material-ui/icons';
-import {GraphStatus, Seaport} from "./constants/CommonConstants";
+import {
+    MuiPickersUtilsProvider,
+    KeyboardDatePicker,
+} from '@material-ui/pickers';
+import {
+    Clear,
+    Close,
+    DirectionsBoat,
+    DirectionsBoatOutlined,
+    InsertChartOutlined,
+    GetApp,
+    SwapHoriz
+} from '@material-ui/icons';
+
+// Constants
+import { GraphStatus, Seaport, Text } from "./constants/CommonConstants";
+
+// Utils and Config
 import API_CONFIG from './config';
-import {mockDataRouteSghRtm} from './mocks/mockDataRouteSghRtm';
 
-import './App.css';
+// Style
+import './App.scss';
 
+// Interfaces
 interface ISeaport {
     code: string;
     name: string;
@@ -44,25 +65,17 @@ interface ID3Graph {
     data?: number[];
     height: number;
     width: number;
-}
-
-interface SimpleDialogProps {
-    open: boolean;
-    selectedValue?: string;
-    onClose: (value: string) => void;
+    className?: string;
 }
 
 function App() {
     const [isLoading, setIsLoading] = useState(true);
     const [isApiError, setIsApiError] = useState(false);
+    const [isGetGraphDataActive, setIsGetGraphDataActive] = useState(false);
     const [apiErrorMessage, setApiErrorMessage] = useState('');
     const [seaportList, setSeaportList] = useState([]);
-    const [isGetGraphDataStarted, setIsGetGraphDataStarted] = useState(false);
-    const [isGetGraphDataEnded, setIsGetGraphDataEnded] = useState(true);
-    const [graphData, setGraphData] = useState([]);
+    const [graphData, setGraphData] = useState<IGraphData[]>([]);
     const [graphDataLength, setGraphDataLength] = useState(0);
-    const [graphDataRangeStart, setGraphDataRangeStart] = useState<string>('');
-    const [graphDataRangeEnd, setGraphDataRangeEnd] = useState<string>('');
     const [seaportSelectedFrom, setSeaportSelectedFrom] = useState<ISeaport | null>(null);
     const [seaportSelectedTo, setSeaportSelectedTo] = useState<ISeaport | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -73,17 +86,10 @@ function App() {
     const [graphDataLow, setGraphDataLow] = useState<any[]>([]);
     const [graphDataMean, setGraphDataMean] = useState<any[]>([]);
     const [graphDataHigh, setGraphDataHigh] = useState<any[]>([]);
+    const [selectedDateFrom, setSelectedDateFrom] = React.useState<Date | string | null>();
+    const [selectedDateTo, setSelectedDateTo] = React.useState<Date | string | null>();
 
     const d3Graph = useRef(null);
-
-
-    const axiosToAWS = axios.create({
-        baseURL: API_CONFIG.BASE_URL,
-        headers: {
-            'x-api-key': API_CONFIG.API_KEY
-        }
-    });
-
 
     useEffect(() => {
         if (seaportList.length === 0) {
@@ -92,20 +98,16 @@ function App() {
         }
 
         setGraphDataLength(graphData.length);
-    }, []);
+    }, [seaportList, graphData]);
 
     useEffect(() => {
         if (graphDataLength > 0) {
-            // @ts-ignore
-            setGraphDataRangeStart(graphData[0]?.day);
-            // @ts-ignore
-            setGraphDataRangeEnd(graphData[graphDataLength - 1]?.day);
-
-            // TODO Case when there is no data in entire range for Low, Mean and/or High
-            // TODO Case when there is data point missing in Low, Mean and/or High
+            setSelectedDateFrom(graphData[0]?.day);
+            setSelectedDateTo(graphData[graphDataLength - 1]?.day)
         }
+
         parseGraphData();
-    }, [graphData])
+    }, [graphData, graphDataLength])
 
     useEffect(() => {
         if (!!seaportSelectedFrom?.code && !!seaportSelectedTo?.code) {
@@ -114,10 +116,70 @@ function App() {
     }, [seaportSelectedFrom, seaportSelectedTo]);
 
     useEffect(() => {
-        if (isApiError) {
-            // clearSeach();
+        // TODO Case when there is no data in entire range for Low, Mean and/or High
+        // TODO Case when there is data point missing in Low, Mean and/or High
+        // console.log(graphDataDay, graphDataLow, graphDataMean, graphDataHigh);
+    }, [graphDataDay, graphDataLow, graphDataMean, graphDataHigh])
+
+    // SETUP API calls
+    const axiosToAWS = axios.create({
+        baseURL: API_CONFIG.BASE_URL,
+        headers: {
+            'x-api-key': API_CONFIG.API_KEY
         }
-    }, [isApiError]);
+    });
+
+    // GET Seaports
+    const getSeaportList = () => axiosToAWS
+        .get(API_CONFIG.API_PORTS)
+        .then(function (response) {
+            setSeaportList(response.data);
+        })
+        .catch(function (error) {
+            setIsApiError(true);
+            setApiErrorMessage(error.message);
+        });
+
+    // CLEAR Search
+    const clearSeach = () => {
+        setIsApiError(false);
+        setGraphData([]);
+        setSelectedDateFrom(null);
+        setSelectedDateTo(null);
+        setSeaportSelectedFrom(null);
+        setSeaportSelectedTo(null);
+        setIsSearchDisabled(true);
+        setIsSwapDisabled(true);
+    }
+
+    // GET Graph Data
+    const getGraphData = () => {
+        if (isSearchDisabled) {
+            return null;
+        }
+
+        setIsApiError(false);
+        setIsGetGraphDataActive(true);
+
+        return axiosToAWS
+            .get(API_CONFIG.API_RATES, {
+                params: {
+                    origin: seaportSelectedFrom?.code,
+                    destination: seaportSelectedTo?.code
+                }
+            })
+            .then(function (response) {
+                setGraphData(response.data);
+            })
+            .catch(function (error) {
+                setGraphData([]);
+                setIsApiError(true);
+                setApiErrorMessage(error.message);
+            })
+            .then(() => {
+                setIsGetGraphDataActive(false);
+            });
+    };
 
     // PARSE Graph Data
     const parseGraphData = () => {
@@ -139,121 +201,36 @@ function App() {
         setGraphDataHigh(dataHigh);
     }
 
-    // GET Seaports
-    const getSeaportList = () => axiosToAWS
-        .get(API_CONFIG.API_PORTS)
-        .then(function (response) {
-            setSeaportList(response.data);
-        })
-        .catch(function (error) {
-            setIsApiError(true);
-            setApiErrorMessage(error.message);
-        });
-
-    // CLEAR Search
-    const clearSeach = () => {
-        setIsApiError(false);
-        setGraphData([]);
-        setGraphDataRangeStart('');
-        setGraphDataRangeEnd('');
-        setSeaportSelectedFrom(null);
-        setSeaportSelectedTo(null);
-        setIsSearchDisabled(true);
-        setIsSwapDisabled(true);
-    }
-
-    // GET Graph Data
-    const getGraphData = () => {
-        if (isSearchDisabled) {
-            return null;
-        }
-
-        setIsApiError(false);
-        setIsGetGraphDataStarted(true);
-
-        return axiosToAWS
-            .get(API_CONFIG.API_RATES, {
-                params: {
-                    origin: seaportSelectedFrom?.code,
-                    destination: seaportSelectedTo?.code
-                }
-            })
-            .then(function (response) {
-                setGraphData(response.data);
-            })
-            .catch(function (error) {
-                setIsApiError(true);
-                setApiErrorMessage(error.message);
-            })
-            .then(() => {
-                // setIsGetGraphDataEnded(true);
-                setTimeout(() => {
-                    console.log(graphData);
-                }, 3000)
-
-            });
-    };
-
-    // Dialog OPEN
+    // OPEN Dialog
     const handleDialogOpen = (portRoute: string) => {
         setIsApiError(false);
         setIsDialogOpen(true);
         setDialogOpenType(portRoute);
     };
 
-    // Dialog CLOSED
+    // CLOSE Dialog
     const handleDialogClose = () => {
         setIsDialogOpen(false);
     };
 
-    // Dialog SELECTED
+    // SELECTED Dialog
     const handleDialogSelectedValue = (seaportSelected: ISeaport) => {
         dialogOpenType === Seaport.FROM ? setSeaportSelectedFrom(seaportSelected) : setSeaportSelectedTo(seaportSelected);
         setIsSwapDisabled(false);
         handleDialogClose();
     };
 
-    // Seaport SWITCH
+    // SWITCH Seaport
     const handleSwitchSeaports = () => {
+        setIsApiError(false);
         setSeaportSelectedFrom(seaportSelectedTo);
         setSeaportSelectedTo(seaportSelectedFrom);
         //[setSeaportSelectedFrom, setSeaportSelectedTo] = [seaportSelectedTo, seaportSelectedFrom]
     };
 
-    // Graph messages
-    const showGraphDataStatus = () => {
-        let statusTextPrimary = GraphStatus.INITIAL;
-        let statusTextSecondary = GraphStatus.SELECT_ROUTE;
-
-        if (isGetGraphDataStarted) {
-            statusTextPrimary = GraphStatus.FETCH_STARTED;
-            statusTextSecondary = GraphStatus.EMPTY;
-        }
-
-        if (isGetGraphDataStarted && isGetGraphDataEnded && graphDataLength === 0) {
-            statusTextPrimary = GraphStatus.FETCH_NO_RECORDS;
-            statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
-        }
-
-        if (isGetGraphDataStarted && isGetGraphDataEnded && isApiError) {
-            statusTextPrimary = GraphStatus.FETCH_FAILED;
-            statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
-        }
-
-        // if () {
-        //     statusTextPrimary = GraphStatus.CLEARED;
-        // }
-
-        return (
-            <div className="ssg-graph-status">
-                <h1>{statusTextPrimary}<small>{statusTextSecondary}</small></h1>
-            </div>
-        )
-    }
-
     // D3 Graph
     const D3Graph = (props: ID3Graph) => {
-        const { height, width } = props;
+        const { height, width, className } = props;
         const graphMargins = {
             top: 15,
             right: 30,
@@ -278,21 +255,24 @@ function App() {
         useEffect(() => {
             if (graphDataLength > 0) {
                 // Scale X
-                const xScaleDay = mockDataRouteSghRtm.map(entry => entry.day);
+                const xScaleDay = graphDataDay;
                 const xScale = d3.scaleBand()
                     .domain(xScaleDay)
                     .range([0, graphWidth])
                     .paddingInner(0.2)
                     .paddingOuter(0.2);
 
-                // Scale Y LOW
-                const yScaleLow = d3.max(mockDataRouteSghRtm.map(entry => entry.high));
+                // LOW
+                const yScaleLow = d3.max(graphDataLow);
                 const yScale = d3.scaleLinear()
                     .domain([0, yScaleLow ?? graphHeight])
                     .range([graphHeight, 0]);
 
-                // Scale Y MEAN
-                // Scale Y HIGH
+                // MEAN
+                const yScaleMean = d3.max(graphDataMean);
+
+                // HIGH
+                const yScaleHigh = d3.max(graphDataHigh);
 
                 // MAIN
                 const d3Main = d3.select(d3Graph.current);
@@ -308,7 +288,7 @@ function App() {
                     .selectAll('rect');
 
                 // Bind the data
-                svgGraph.data(mockDataRouteSghRtm)
+                svgGraph.data(graphData)
                     .enter()
                     .append('rect')
                     .attr('x', d => xScale(d.day) ?? null)
@@ -347,14 +327,12 @@ function App() {
         }
 
         return (
-            <svg className="d3-graph-component" ref={d3Graph}/>
+            <svg className={className} ref={d3Graph}/>
         );
 
     };
 
-    const saveGraphToPng = () => {
-        return saveSvgAsPng(document.querySelector('.d3-graph-component'), 'export-ssg.png');
-    }
+
 
     const countryFlagComponent = (seaport: ISeaport | null) => {
         if (!seaport) {
@@ -365,11 +343,283 @@ function App() {
         return <CountryFlagComponent key={seaport.name}/>
     }
 
-    // Simple Dialog Component
-    const SimpleDialog = (props: SimpleDialogProps) => {
-        const {open} = props;
 
-        if (!open || seaportList.length === 0) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // HEADER
+    const _renderHeader = () => {
+        return (
+            <div className="ssg-header">
+                <h1 className="ssg-header__title">{Text.PAGE_TITLE}<small>{Text.PAGE_SUBTITLE}</small>
+                    <InsertChartOutlined className="ssg-header__title-icon"/>
+                </h1>
+            </div>
+        )
+    };
+
+    // ROUTE SELECTOR
+    const _renderRouteSelector = () => {
+        return (
+            <>
+                <h2 className="ssg-main__title">{Text.SECTION_ROUTE_SELECTOR}</h2>
+                <Grid container spacing={2} className="ssg-main__route-selector">
+                    <Grid item xs={3}>
+                        {_renderRouteSelectorButton(Seaport.FROM, seaportSelectedFrom)}
+                    </Grid>
+                    <Grid item>
+                        <Button
+                            className='ssg-main__route-selector-button-swap'
+                            color='primary'
+                            disabled={isSwapDisabled}
+                            onClick={() => handleSwitchSeaports()}
+                            variant='outlined'
+                        >
+                            <SwapHoriz/>
+                        </Button>
+                    </Grid>
+                    <Grid item xs={3}>
+                        {_renderRouteSelectorButton(Seaport.TO, seaportSelectedTo)}
+                    </Grid>
+                    <Grid item xs={3}>
+                        <Button
+                            className="ssg-main__route-selector-button--adjust"
+                            color='primary'
+                            disabled={isSearchDisabled}
+                            disableElevation
+                            onClick={() => getGraphData()}
+                            variant='contained'
+                        >
+                            {isGetGraphDataActive ? Text.LOADING : Text.SECTION_ROUTE_BUTTON_SEARCH}
+                        </Button>
+                    </Grid>
+                    <Grid item>
+                        <Button
+                            className='ssg-main__route-selector-button-clear'
+                            color='default'
+                            disabled={isSwapDisabled}
+                            onClick={() => clearSeach()}
+                            variant='outlined'
+                        >
+                            <Clear/>
+                            {Text.CLEAR}
+                        </Button>
+                    </Grid>
+                </Grid>
+            </>
+        )
+    };
+
+    // ROUTE SELECTOR BUTTON
+    const _renderRouteSelectorButton = (seaportRoute: string, seaportRouteSelected: ISeaport | null) => {
+        const className = 'ssg-main__route-selector-button--icon';
+        const renderShipIcon = () => {
+            if (seaportRoute === Seaport.TO) {
+                return <DirectionsBoatOutlined className={className}/>
+            }
+            return <DirectionsBoat className={className}/>
+        }
+
+        return (
+            <Button
+                className='ssg-main__route-selector-button ssg-main__route-selector-button--adjust'
+                color='primary'
+                onClick={() => handleDialogOpen(seaportRoute)}
+                variant='outlined'
+            >
+                {renderShipIcon()}
+                <span className="ssg-main__route-selector-info-flag">{countryFlagComponent(seaportRouteSelected)}</span>
+                <div className="ssg-main__route-selector-info-text">
+                    <span className="ssg-main__route-selector-info-name">
+                        {seaportRouteSelected?.name ? seaportRouteSelected?.name : seaportRoute}
+                    </span>
+                    <span className="ssg-main__route-selector-info-text-code">
+                        {seaportRouteSelected?.code ?? seaportRouteSelected?.code}
+                    </span>
+                </div>
+            </Button>
+        )
+    }
+
+    // ERRORS
+    const _renderRouteSelectorErrors = () => {
+        return (
+            <div className="ssg-main__alert">
+                <Collapse in={isApiError}>
+                    <Alert
+                        className="ssg-main__alert-error"
+                        severity="error"
+                        action={
+                            <IconButton
+                                aria-label="close"
+                                color="inherit"
+                                size="small"
+                                onClick={() => {
+                                    setIsApiError(false);
+                                }}
+                            >
+                                <Close fontSize="inherit" />
+                            </IconButton>
+                        }
+                    >
+                        {apiErrorMessage}
+                    </Alert>
+                </Collapse>
+            </div>
+        )
+    }
+
+    // ENTER GRAPH
+    const _renderPrimaryGraph = () => {
+        return (
+            <Paper className="ssg-main__graph">
+                <D3Graph width={852} height={320} className="ssg-main__graph-d3js"/>
+                {_renderGraphDataStatusMessage()}
+            </Paper>
+        )
+    };
+
+    // GRAPH STATUS MESSAGES
+    const _renderGraphDataStatusMessage = () => {
+        let statusTextPrimary = GraphStatus.INITIAL;
+        let statusTextSecondary = GraphStatus.SELECT_ROUTE;
+
+        // if (isGetGraphDataStarted) {
+        //     statusTextPrimary = GraphStatus.FETCH_STARTED;
+        //     statusTextSecondary = GraphStatus.EMPTY;
+        // }
+        //
+        // if (isGetGraphDataStarted && isGetGraphDataEnded && graphDataLength === 0) {
+        //     statusTextPrimary = GraphStatus.FETCH_NO_RECORDS;
+        //     statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
+        // }
+        //
+        // if (isGetGraphDataStarted && isGetGraphDataEnded && isApiError) {
+        //     statusTextPrimary = GraphStatus.FETCH_FAILED;
+        //     statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
+        // }
+
+        // if () {
+        //     statusTextPrimary = GraphStatus.CLEARED;
+        // }
+
+        if (isApiError) {
+            statusTextPrimary = GraphStatus.FETCH_FAILED;
+            statusTextSecondary = GraphStatus.SELECT_ROUTE_OTHER;
+        }
+
+        if (graphDataLength > 0) {
+            return null;
+        }
+
+        return (
+            <div className="ssg-main__graph-status-message">
+                <h1 className="ssg-main__graph-status-message-title">{statusTextPrimary}<small className="ssg-main__graph-status-message-subtitle">{statusTextSecondary}</small></h1>
+            </div>
+        )
+    }
+
+    // GRAPH OPTIONS
+    const _renderGraphOptions = () => {
+        const handleDateChangeFrom = (date: Date | null) => setSelectedDateFrom(date);
+        const handleDateChangeTo = (date: Date | null) => setSelectedDateTo(date);
+        const commonProps = {
+            disableToolbar: true,
+            autoOk: true,
+            format: 'yyyy-MM-dd',
+            id: 'date-picker-inline',
+            className: 'ssg-options__time-range--date'
+        }
+
+        return (
+            <Collapse in={graphDataLength > 0} className="ssg-options">
+                <Grid container spacing={5}>
+                    <Grid item xs={9}>
+                        <MuiPickersUtilsProvider utils={DateFnsUtils}>
+                            <Grid container className="ssg-options__time-range">
+                                {Text.DATE_RANGE_FROM}
+                                <KeyboardDatePicker
+                                    {...commonProps}
+                                    variant="inline"
+                                    margin="normal"
+                                    value={selectedDateFrom}
+                                    onChange={handleDateChangeFrom}
+                                    KeyboardButtonProps={{
+                                        'aria-label': Text.SET_DATE_FROM,
+                                    }}
+                                />
+                                {Text.DATE_RANGE_TO}
+                                <KeyboardDatePicker
+                                    {...commonProps}
+                                    variant="inline"
+                                    margin="normal"
+                                    value={selectedDateTo}
+                                    onChange={handleDateChangeTo}
+                                    KeyboardButtonProps={{
+                                        'aria-label': Text.SET_DATE_TO,
+                                    }}
+                                />.
+                            </Grid>
+                        </MuiPickersUtilsProvider>
+                    </Grid>
+                    <Grid item xs={3} style={{textAlign: 'right'}}>
+                        <Button
+                            color='primary'
+                            disabled={isSearchDisabled}
+                            disableElevation
+                            onClick={() => saveGraphToPng()}
+                            variant='contained'
+                            aria-label={Text.SECTION_ROUTE_SAVE_AS_PNG}
+                        >
+                            <GetApp className="ssg-options__button--icon"/>
+                            {Text.SECTION_ROUTE_SAVE_AS_PNG}
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Collapse>
+        )
+    };
+
+    // const _renderSecondaryGraph = () => {};
+
+    // FOOTER
+    const _renderFooter = () => {
+        return (
+            <footer className="ssg-footer">
+                <span>Copyright &copy; 2021 {Text.PAGE_TITLE} by Auxburgo</span>
+            </footer>
+        )
+    };
+
+    // HELPER / UTILITY
+    const randomNumber = (maxNum: number) => {
+        return Math.floor(Math.random() * Math.floor(maxNum));
+    };
+
+    const saveGraphToPng = () => {
+        const setFileNamePart = `${seaportSelectedFrom?.code}-${seaportSelectedTo?.code}${selectedDateFrom && '-' + selectedDateFrom}${selectedDateTo && '-' + selectedDateTo}-${uuidv4()}`;
+        return saveSvgAsPng(document.querySelector('.ssg-main__graph-d3js'),`ssg-export-${setFileNamePart}.png`);
+    }
+
+    // const _renderLoading = () => {
+    //     return (
+    //         <div className="ssg-loading"><CircularProgress /> Loading...</div>
+    //     )
+    // };
+
+    // ROUTE SELECT DIALOG
+    const _renderRouteSelectDialog = () => {
+        if (!isDialogOpen || seaportList.length === 0) {
             return null;
         }
 
@@ -412,150 +662,33 @@ function App() {
                 </List>
             </Dialog>
         );
-    }
+    };
 
     if (isLoading) {
         return (
-            <div><CircularProgress /> Loading...</div>
+            <div>
+                {Text.LOADING}
+                <CircularProgress/>
+            </div>
         )
     }
 
     return (
-        <Container maxWidth="md">
-            <h1 className="ssg-title">
-                SSG
-                <small>Seaport Shipping Graphs</small>
-                <InsertChartOutlined className="ssg-title__icon"/>
-            </h1>
-            <Paper className='ssg'>
-                <main className='ssg-main'>
-                    <div>
-                        <h2 className="ssg-main__title">Route selection</h2>
-                        <Grid container spacing={2} className="ssg-main__search-grid">
-                            <Grid item xs={3}>
-                                <Button
-                                    style={{width: '100%', height: 48}}
-                                    variant='outlined'
-                                    color='primary'
-                                    className='ssg-route-select__button'
-                                    onClick={() => handleDialogOpen(Seaport.FROM)}
-                                >
-                                    <DirectionsBoat className="ssg-route-select__button-icon"/>
-                                    <span className="ssg-route-select__info-flag">
-                                        {countryFlagComponent(seaportSelectedFrom)}
-                                    </span>
-                                    <div className="ssg-route-select__info">
-                                        <span className="ssg-route-select__info-name">
-                                            {seaportSelectedFrom?.name ? seaportSelectedFrom?.name : Seaport.FROM}
-                                        </span>
-                                        <span className="ssg-route-select__info-code">
-                                            {seaportSelectedFrom?.code ?? seaportSelectedFrom?.code}
-                                        </span>
-                                    </div>
-                                </Button>
-                            </Grid>
-                            <Grid item>
-                                <Button
-                                    variant='outlined'
-                                    color='primary'
-                                    className='ssg-route-select__button-swap'
-                                    onClick={() => handleSwitchSeaports()}
-                                    disabled={isSwapDisabled}
-                                ><SwapHoriz/></Button>
-                            </Grid>
-                            <Grid item xs={3}>
-                                <Button
-                                    style={{width: '100%', height: 48}}
-                                    variant='outlined'
-                                    color='primary'
-                                    className='ssg-route-select__button'
-                                    onClick={() => handleDialogOpen(Seaport.TO)}
-                                >
-                                    <DirectionsBoatOutlined style={{fontSize: '20px', position: 'absolute', left: 10}}/>
-                                    <span className="ssg-route-select__info-flag">
-                                        {countryFlagComponent(seaportSelectedTo)}
-                                    </span>
-                                    <div className="ssg-route-select__info">
-                                        <span className="ssg-route-select__info-name">
-                                            {seaportSelectedTo?.name ? seaportSelectedTo?.name : Seaport.TO}
-                                        </span>
-                                        <span className="ssg-route-select__info-code">
-                                            {seaportSelectedTo?.code ?? seaportSelectedTo?.code}
-                                        </span>
-                                    </div>
-                                </Button>
-                            </Grid>
-                            <Grid item xs={2}>
-                                <Button
-                                    style={{width: '100%', height: 48}}
-                                    variant='contained'
-                                    color='primary'
-                                    onClick={() => getGraphData()}
-                                    disableElevation
-                                    disabled={isSearchDisabled}
-                                >
-                                    Get prices
-                                </Button>
-                            </Grid>
-                            <Grid item>
-                                <Button
-                                    variant='outlined'
-                                    color='secondary'
-                                    className='ssg-route-select__button-clear-search'
-                                    onClick={() => clearSeach()}
-                                    disabled={isSearchDisabled}
-                                ><Clear/></Button>
-                            </Grid>
-                        </Grid>
-                        <div className="ssg-alert__wrapper">
-                            <Collapse in={isApiError}>
-                                <Alert
-                                    className="ssg-alert__error"
-                                    severity="error"
-                                    action={
-                                        <IconButton
-                                            aria-label="close"
-                                            color="inherit"
-                                            size="small"
-                                            onClick={() => {
-                                                setIsApiError(false);
-                                            }}
-                                        >
-                                            <Close fontSize="inherit" />
-                                        </IconButton>
-                                    }
-                                >
-                                    {apiErrorMessage}
-                                </Alert>
-                            </Collapse>
-                        </div>
-                        <Paper className="ssg-graph">
-                            <D3Graph width={852} height={320}/>
-                            {showGraphDataStatus()}
-                        </Paper>
-                        <Collapse in={graphDataLength > 0}>
-                            <Grid container spacing={5}>
-                                <Grid item xs={8}>
-                                    <h4 style={{padding: 0, margin: 0, lineHeight: '36px'}}>Shipping prices for {graphDataRangeStart} to {graphDataRangeEnd}.</h4>
-                                </Grid>
-                                <Grid item xs={4} style={{textAlign: 'right'}}>
-                                    <Button
-                                        variant='outlined'
-                                        onClick={() => saveGraphToPng()}
-                                        disableElevation
-                                        disabled={isSearchDisabled}
-                                    >
-                                        <GetApp/>
-                                        Save as PNG
-                                    </Button>
-                                </Grid>
-                            </Grid>
-                        </Collapse>
-                    </div>
-                </main>
-            </Paper>
-            <SimpleDialog open={isDialogOpen} onClose={handleDialogClose}/>
-        </Container>
+        <div className={`ssg-wrapper bg-ver-3 ${randomNumber(4)}`}>
+            <div className="ssg">
+                <Container maxWidth="md" >
+                    {_renderHeader()}
+                    <Paper className="ssg-main">
+                        {_renderRouteSelector()}
+                        {_renderRouteSelectorErrors()}
+                        {_renderPrimaryGraph()}
+                        {_renderGraphOptions()}
+                    </Paper>
+                    {_renderFooter()}
+                </Container>
+            </div>
+            {_renderRouteSelectDialog()}
+        </div>
     );
 }
 
