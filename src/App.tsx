@@ -84,7 +84,7 @@ function App() {
     const [isApiError, setIsApiError] = useState(false);
     const [isAlertDismissed, setIsAlertDismissed] = useState(false);
     const [isGetGraphDataActive, setIsGetGraphDataActive] = useState(false);
-    const [isGraphDataIncomplete, setisGraphDataIncomplete] = useState(false);
+    const [isGraphDataIncomplete, setIsGraphDataIncomplete] = useState(false);
     const [apiErrorMessage, setApiErrorMessage] = useState('');
     const [seaportList, setSeaportList] = useState([]);
     const [graphData, setGraphData] = useState<IGraphData[]>([]);
@@ -133,7 +133,7 @@ function App() {
     useEffect(() => {
         if (graphDataLength > 0) {
             const parsedGraphDataGroup = () => [graphDataDay, graphDataLow, graphDataMean, graphDataHigh].map((graphDataSet) => graphDataSet.includes(null));
-            setisGraphDataIncomplete(parsedGraphDataGroup().includes(true));
+            setIsGraphDataIncomplete(parsedGraphDataGroup().includes(true));
         }
     }, [graphDataDay, graphDataLow, graphDataMean, graphDataHigh]);
 
@@ -572,7 +572,7 @@ function App() {
         }
 
         return (
-            <Collapse in={graphDataLength > 0} className='ssg-options'>
+            <Collapse in={graphDataLength > 0 && !isGraphDataIncomplete} className='ssg-options'>
                 <Grid container spacing={5}>
                     <Grid item xs={9}>
                         <MuiPickersUtilsProvider utils={DateFnsUtils}>

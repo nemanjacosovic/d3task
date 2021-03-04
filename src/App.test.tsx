@@ -2,8 +2,11 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+// import { mockDataSeaports } from './mocks/mockDataSeaports';
+// import { mockDataRouteSghRtm } from './mocks/mockDataRouteSghRtm';
+
+test('renders loading screen', () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  const textElement = screen.getByText(/Loading.../i);
+  expect(textElement).toBeInTheDocument();
 });
