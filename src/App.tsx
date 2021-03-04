@@ -54,6 +54,11 @@ interface ISeaport {
     name: string;
 }
 
+interface IDate {
+    day: Date | null;
+    value: number
+}
+
 interface IGraphData {
     day: string;
     low: number;
@@ -225,7 +230,6 @@ function App() {
         setIsApiError(false);
         setSeaportSelectedFrom(seaportSelectedTo);
         setSeaportSelectedTo(seaportSelectedFrom);
-        //[setSeaportSelectedFrom, setSeaportSelectedTo] = [seaportSelectedTo, seaportSelectedFrom]
     };
 
     // D3 Graph
@@ -255,70 +259,134 @@ function App() {
         useEffect(() => {
             if (graphDataLength > 0) {
                 // Scale X
-                const xScaleDay = graphDataDay;
-                const xScale = d3.scaleBand()
-                    .domain(xScaleDay)
-                    .range([0, graphWidth])
-                    .paddingInner(0.2)
-                    .paddingOuter(0.2);
+                const xScale = d3.scaleTime()
+                    .domain([new Date(graphDataDay[0]), new Date(graphDataDay[graphDataDay.length - 1])])
+                    .range([0, graphWidth]);
 
                 // LOW
                 const yScaleLow = d3.max(graphDataLow);
+                const yScaleMean = d3.max(graphDataMean);
+                const yScaleHigh = d3.max(graphDataHigh);
                 const yScale = d3.scaleLinear()
-                    .domain([0, yScaleLow ?? graphHeight])
+                    .domain([yScaleLow - 100, yScaleHigh + 100])
                     .range([graphHeight, 0]);
 
-                // MEAN
-                const yScaleMean = d3.max(graphDataMean);
 
-                // HIGH
-                const yScaleHigh = d3.max(graphDataHigh);
 
                 // MAIN
-                const d3Main = d3.select(d3Graph.current);
+                const d3Main = d3.select(d3Graph.current)
+                    .attr('width', width)
+                    .attr('height', height);
 
                 // MAIN Container
                 const svgGraph = d3Main
-                    .attr('width', width)
-                    .attr('height', height)
                     .append('g')
                     .attr('width', graphWidth)
                     .attr('height', graphHeight)
-                    .attr('transform', `translate(${graphMargins.left}, ${graphMargins.top})`)
-                    .selectAll('rect');
+                    .attr('transform', `translate(${graphMargins.left}, ${graphMargins.top})`);
 
                 // Bind the data
-                svgGraph.data(graphData)
-                    .enter()
-                    .append('rect')
-                    .attr('x', d => xScale(d.day) ?? null)
-                    .attr('y', d => graphHeight - (graphHeight - yScale(d.high)))
-                    .attr('width', xScale.bandwidth)
-                    .attr('height', d => graphHeight - yScale(d.high))
-                    .attr('fill', 'orange');
+                console.log(svgGraph)
+                // svgGraph.data(graphData)
+                //     .enter()
+                //     .append('g')
+                //     .append('path')
+                //     .attr('stroke', 'steelblue')
+                //     .attr('stroke-width', 2)
+                //     .attr('fill', 'none')
 
                 // Axis X and Y
                 const xAxisGroup = d3Main
                     .append('g')
-                    .attr('transform', `translate(${graphMargins.left}, ${graphHeight + graphMargins.top})`);
+                    .attr('class', 'x-axis')
+                    .attr('transform', `translate(${graphMargins.left}, ${graphHeight + graphMargins.top})`)
+
+                const xAxis = d3.axisBottom(xScale);
+
                 const yAxisGroup = d3Main.append('g')
+                    .attr('class', 'y-axis')
                     .attr('transform', `translate(${graphMargins.left}, ${graphMargins.top})`);
 
-                const xAxis = d3.axisBottom(xScale)
-                    .tickFormat(d => d.substring(0, d.length));
                 const yAxis = d3.axisLeft(yScale)
-                    .ticks(4);
+                    .ticks(6)
+                    .tickFormat(d => `${d} €`);
 
                 xAxisGroup.call(xAxis);
                 yAxisGroup.call(yAxis);
 
+
+                // Dots
+                const dots = svgGraph.selectAll('circle')
+                    .data(graphData)
+
+                dots.enter()
+                    .append('circle')
+                    .attr('r', 3)
+                    .attr('cx', (d, i, n) => xScale(new Date(graphDataDay[i])))
+                    .attr('cy', (d, i, n) => yScale(graphDataLow[i]))
+                    .attr('fill', '#028090')
+
+                dots.enter()
+                    .append('circle')
+                    .attr('r', 3)
+                    .attr('cx', (d, i, n) => xScale(new Date(graphDataDay[i])))
+                    .attr('cy', (d, i, n) => yScale(graphDataMean[i]))
+                    .attr('fill', '#DEB841')
+
+                dots.enter()
+                    .append('circle')
+                    .attr('r', 3)
+                    .attr('cx', (d, i, n) => xScale(new Date(graphDataDay[i])))
+                    .attr('cy', (d, i, n) => yScale(graphDataHigh[i]))
+                    .attr('fill', '#F45B69')
+
+                // Line
+                const setLine = d3.line()
+                    .x((d, i) => xScale(new Date(graphDataDay[i])))
+                    .y((d, i) => yScale(graphDataLow[i]));
+
+                const setLine2 = d3.line()
+                    .x((d, i) => xScale(new Date(graphDataDay[i])))
+                    .y((d, i) => yScale(graphDataMean[i]));
+
+                const setLine3 = d3.line()
+                    .x((d, i) => xScale(new Date(graphDataDay[i])))
+                    .y((d, i) => yScale(graphDataHigh[i]));
+
+                svgGraph.append('path')
+                    .data([graphData])
+                    .attr('fill', 'none')
+                    .attr('stroke', '#028090')
+                    .attr('stroke-width', 1)
+                    //@ts-ignore
+                    .attr('d', setLine)
+
+                svgGraph.append('path')
+                    .data([graphData])
+                    .attr('fill', 'none')
+                    .attr('stroke', '#DEB841')
+                    .attr('stroke-width', 1)
+                    //@ts-ignore
+                    .attr('d', setLine2)
+
+                svgGraph.append('path')
+                    .data([graphData])
+                    .attr('fill', 'none')
+                    .attr('stroke', '#F45B69')
+                    .attr('stroke-width', 1)
+                    //@ts-ignore
+                    .attr('d', setLine3)
+
+
+
+                // Adjust X Axis
                 xAxisGroup.selectAll('text')
-                    .attr('transform', 'rotate(-45)')
+                    .attr('transform', 'rotate(-30)')
                     .attr('text-anchor', 'end')
 
-                d3Main.selectAll('rect')
-                    .on('mouseover', handleMouseOver)
-                    .on('mouseout', handleMouseOut);
+                // d3Main.selectAll('rect')
+                //     .on('mouseover', handleMouseOver)
+                //     .on('mouseout', handleMouseOut);
             }
         }, [graphData]);
 
@@ -331,31 +399,6 @@ function App() {
         );
 
     };
-
-
-
-    const countryFlagComponent = (seaport: ISeaport | null) => {
-        if (!seaport) {
-            return null;
-        }
-
-        const CountryFlagComponent = seaport?.code.substring(0, 2).split('.').reduce((o, i) => o[i], CountryFlag);
-        return <CountryFlagComponent key={seaport.name}/>
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     // HEADER
     const _renderHeader = () => {
@@ -449,6 +492,18 @@ function App() {
                 </div>
             </Button>
         )
+    }
+
+    // ROUTE SELECTOR BUTTON COUNTRY FLAG
+    const countryFlagComponent = (seaport: ISeaport | null) => {
+        if (!seaport) {
+            return null;
+        }
+
+        const CountryFlagComponent = seaport?.code.substring(0, 2)
+            .split('.')
+            .reduce((o, i) => o[i], CountryFlag);
+        return <CountryFlagComponent key={seaport.name}/>
     }
 
     // ERRORS
