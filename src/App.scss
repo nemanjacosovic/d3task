@@ -294,6 +294,6 @@ html, body, #root {
 }
 
 // Helper
-.d3-graph-component + .ssg-graph-status {
+.ssg-main__graph-d3js + .ssg-main__graph-status-message {
   display: none;
 }

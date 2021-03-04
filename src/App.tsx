@@ -54,17 +54,6 @@ interface ISeaport {
     name: string;
 }
 
-interface IDate {
-    day: Date | null;
-    value: number
-}
-
-interface IMarkerData {
-    rValue: number,
-    cyValue: number[],
-    fillValue: string
-}
-
 interface IGraphData {
     day: string;
     low: number;
@@ -331,8 +320,8 @@ function App() {
                     markers.enter()
                         .append('circle')
                         .attr('r', markerData.rValue)
-                        .attr('cx', (d, i, n) => xScale(new Date(graphDataDay[i])))
-                        .attr('cy', (d, i, n) => yScale(markerData.cyValue[i]))
+                        .attr('cx', (d, i) => xScale(new Date(graphDataDay[i])))
+                        .attr('cy', (d, i) => yScale(markerData.cyValue[i]))
                         .attr('fill', markerData.color)
 
                     d3.line()
