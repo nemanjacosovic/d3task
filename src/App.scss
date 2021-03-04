@@ -4,6 +4,31 @@ html, body, #root {
   background: rgba(245, 246, 247, 1);
 }
 
+// Loading
+.ssg-loading {
+  height: 100%;
+  min-height: 100%;
+  text-align: center;
+
+  &__container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-50%);
+  }
+
+  &__text {
+    display: block;
+    font-size: 60px;
+    font-weight: bold;
+    margin-bottom: 45px;
+  }
+
+  &__spinner {
+    display: block;
+  }
+}
+
 // SSG wrapper
 .ssg-wrapper, .ssg {
   height: 100%;
@@ -16,33 +41,33 @@ html, body, #root {
 .bg-ver-2,
 .bg-ver-3,
 .bg-ver-4 {
-  //transition: background-image 300ms ease-in;
+  transition: background-image 600ms ease-in;
 }
 
 .ssg-wrapper.bg-ver-0 {
-  background: url("./assets/image/background-0.jpg") top center no-repeat;
+  background: url("./assets/image/optimised/background-0.jpg") top center no-repeat;
   background-size: cover;
 }
 .ssg-wrapper.bg-ver-1 {
-  background: url("./assets/image/background-1.jpg") top center no-repeat;
+  background: url("./assets/image/optimised/background-1.jpg") top center no-repeat;
   background-size: cover;
 }
 .ssg-wrapper.bg-ver-2 {
-  background: url("./assets/image/background-2.jpg") top center no-repeat;
+  background: url("./assets/image/optimised/background-2.jpg") top center no-repeat;
   background-size: cover;
 }
 .ssg-wrapper.bg-ver-3 {
-  background: url("./assets/image/background-3.jpg") top center no-repeat;
+  background: url("./assets/image/optimised/background-3.jpg") top center no-repeat;
   background-size: cover;
 }
 .ssg-wrapper.bg-ver-4 {
-  background: url("./assets/image/background-4.jpg") top center no-repeat;
+  background: url("./assets/image/optimised/background-4.jpg") top center no-repeat;
   background-size: cover;
 }
 
 // Content
 .ssg {
-  background: rgba(250, 250, 250, 0.3);
+  background: rgba(250, 250, 250, 0.2);
 }
 
 // Header

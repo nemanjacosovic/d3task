@@ -152,19 +152,6 @@ function App() {
             setApiErrorMessage(error.message);
         });
 
-    // CLEAR Search
-    const clearSearch = () => {
-        // d3.select(d3Graph.current).remove();
-        setIsApiError(false);
-        setGraphData([]);
-        setSelectedDateFrom(null);
-        setSelectedDateTo(null);
-        setSeaportSelectedFrom(null);
-        setSeaportSelectedTo(null);
-        setIsSearchDisabled(true);
-        setIsSwapDisabled(true);
-    }
-
     // GET Graph Data
     const getGraphData = () => {
         if (isSearchDisabled) {
@@ -179,6 +166,8 @@ function App() {
                 params: {
                     origin: seaportSelectedFrom?.code,
                     destination: seaportSelectedTo?.code
+                    // date_from: seaportSelectedFrom
+                    // date_to: seaportSelectedTo
                 }
             })
             .then(function (response) {
@@ -193,6 +182,18 @@ function App() {
                 setIsGetGraphDataActive(false);
             });
     };
+
+    // CLEAR Search
+    const clearSearch = () => {
+        setIsApiError(false);
+        setGraphData([]);
+        setSelectedDateFrom(null);
+        setSelectedDateTo(null);
+        setSeaportSelectedFrom(null);
+        setSeaportSelectedTo(null);
+        setIsSearchDisabled(true);
+        setIsSwapDisabled(true);
+    }
 
     // PARSE Graph Data
     const parseGraphData = () => {
@@ -251,11 +252,10 @@ function App() {
         useEffect(() => {
             if (graphDataLength !== 0) {
                 // X scale
+                const xScaleOffset = new Date(new Date(graphDataDay[0]).getTime() - 86400000);
                 const xScale = d3.scaleTime()
-                    .domain([new Date(graphDataDay[0]), new Date(graphDataDay[graphDataDay.length - 1])])
+                    .domain([xScaleOffset, new Date(graphDataDay[graphDataDay.length - 1])])
                     .range([0, graphWidth]);
-
-                console.log('xScale');
 
                 // Y scale
                 const yScaleLow = d3.max(graphDataLow);
@@ -264,14 +264,10 @@ function App() {
                     .domain([yScaleLow - 100, yScaleHigh + 100])
                     .range([graphHeight, 0]);
 
-                console.log('yScale');
-
                 // Main node
                 const d3Main = d3.select(d3Graph.current)
                     .attr('width', width)
                     .attr('height', height);
-
-                console.log('Main node');
 
                 // Entry node
                 const svgGraph = d3Main
@@ -280,16 +276,12 @@ function App() {
                     .attr('height', graphHeight)
                     .attr('transform', `translate(${graphMargins.left}, ${graphMargins.top})`);
 
-                console.log('Entry node');
-
                 // X axis
                 const xAxisGroup = d3Main.append('g')
                     .attr('transform', `translate(${graphMargins.left}, ${graphHeight + graphMargins.top})`)
                 const xAxis = d3.axisBottom(xScale);
 
                 xAxisGroup.call(xAxis);
-
-                console.log('x axis');
 
                 // Y axis
                 const yAxisGroup = d3Main.append('g')
@@ -300,27 +292,25 @@ function App() {
 
                 yAxisGroup.call(yAxis);
 
-                console.log('y axis');
-
                 // Markers
                 const markers = svgGraph.selectAll('circle')
                     .data(graphData)
 
                 const makerParserData = [
                     {
-                        rValue: 3,
+                        rValue: 4,
                         cyValue: graphDataLow,
                         color: '#028090',
                         lineStroke: 1
                     },
                     {
-                        rValue: 3,
+                        rValue: 4,
                         cyValue: graphDataMean,
                         color: '#DEB841',
                         lineStroke: 1
                     },
                     {
-                        rValue: 3,
+                        rValue: 4,
                         cyValue: graphDataHigh,
                         color: '#F45B69',
                         lineStroke: 1
@@ -361,7 +351,7 @@ function App() {
                     d3.select(event.currentTarget)
                         .transition()
                         .duration(300)
-                        .attr('r', 6);
+                        .attr('r', 8);
                 }
 
                 // Hover OUT
@@ -370,9 +360,8 @@ function App() {
                         .transition()
                         .delay(300)
                         .duration(500)
-                        .attr('r', 3);
+                        .attr('r', 4);
                 }
-
 
                 d3Main.selectAll('circle')
                     .on('mouseover', handleMouseOver)
@@ -620,7 +609,7 @@ function App() {
                     </Grid>
                     <Grid item xs={3} style={{textAlign: 'right'}}>
                         <Button
-                            color='primary'
+                            color='default'
                             disabled={isSearchDisabled}
                             disableElevation
                             onClick={() => saveGraphToPng()}
@@ -712,15 +701,19 @@ function App() {
 
     if (isLoading) {
         return (
-            <div>
-                {Text.LOADING}
-                <CircularProgress/>
+            <div className="ssg-loading">
+                <div className="ssg-loading__container">
+                    <span className="ssg-loading__text">
+                        {Text.LOADING}
+                    </span>
+                    <CircularProgress className="ssg-loading__spinner"/>
+                </div>
             </div>
         )
     }
 
     return (
-        <div className={`ssg-wrapper bg-ver-3 ${randomNumber(4)}`}>
+        <div className={`ssg-wrapper bg-ver-0 bg-ver-${randomNumber(4)}`}>
             <div className="ssg">
                 <Container maxWidth="md" >
                     {_renderHeader()}
