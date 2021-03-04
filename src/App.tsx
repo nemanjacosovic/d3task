@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState, MouseEvent} from 'react';
 
 import axios from 'axios';
 import * as d3 from 'd3';
@@ -330,6 +330,7 @@ function App() {
 
                     d3Main.append('path')
                         .attr('fill', 'none')
+                        .attr('class', 'ssg-graph-path')
                         .attr('stroke', markerData.color)
                         .attr('stroke-width', markerData.lineStroke)
                         .attr('d', function(){
@@ -338,7 +339,12 @@ function App() {
                                 .y(function(d, i) { return yScale(markerData.cyValue[i]) + graphMargins.top; })
                                 (markerData.cyValue)
                         })
+
+                    return null;
                 });
+
+                // Tooltip
+                const graphTip = d3.select('.ssg-main__graph-tooltip')
 
                 // Adjust X Axis
                 xAxisGroup.selectAll('text')
@@ -346,15 +352,29 @@ function App() {
                     .attr('text-anchor', 'end')
 
                 // Hover IN
-                const handleMouseOver = (event: { currentTarget: any; }) => {
+                const handleMouseOver = (event: MouseEvent) => {
                     d3.select(event.currentTarget)
                         .transition()
                         .duration(300)
                         .attr('r', 8);
                 }
 
+                // Move
+                const handleMouseMove = (event: MouseEvent, d: IGraphData) => {
+                    const [x, y] = d3.pointer(event);
+
+                    graphTip.html(`
+                            <div class='ssg-main__graph-tooltip--date'>${d ? d.day : ''}</div>
+                            <div class='ssg-main__graph-tooltip--key'>High: <span class='ssg-main__graph-tooltip--value'>${d ? d.high + ' €' : ''}</span></div>
+                            <div class='ssg-main__graph-tooltip--key'>Mean: <span class='ssg-main__graph-tooltip--value'>${d ? d.mean + ' €' : ''}</span></div>
+                            <div class='ssg-main__graph-tooltip--key'>Low: <span class='ssg-main__graph-tooltip--value'>${d ? d.low + ' €' : ''}</span></div>
+                        `)
+                        .style('opacity', 1)
+                        .style('transform', `translate(${x - 80}px, ${y + 30}px)`)
+                };
+
                 // Hover OUT
-                const handleMouseOut = (event: { currentTarget: any; }) => {
+                const handleMouseOut = (event: MouseEvent) => {
                     d3.select(event.currentTarget)
                         .transition()
                         .delay(300)
@@ -362,8 +382,15 @@ function App() {
                         .attr('r', 4);
                 }
 
+                graphTip.on('click', () => {
+                    graphTip.style('opacity', 0);
+                })
+
                 d3Main.selectAll('circle')
+                    .style('cursor', 'pointer')
                     .on('mouseover', handleMouseOver)
+                    // @ts-ignore
+                    .on('mousemove', handleMouseMove)
                     .on('mouseleave', handleMouseOut);
             }
 
@@ -510,6 +537,7 @@ function App() {
     const _renderPrimaryGraph = () => {
         return (
             <Paper className='ssg-main__graph'>
+                {graphData.length === 0 || isGraphDataIncomplete ? null : <div className='ssg-main__graph-tooltip'/>}
                 {graphData.length === 0 || isGraphDataIncomplete ? null : <D3Graph width={852} height={320} className='ssg-main__graph-d3js'/> }
                 {_renderGraphDataStatusMessage()}
             </Paper>
@@ -556,7 +584,6 @@ function App() {
             disableToolbar: true,
             autoOk: true,
             format: 'yyyy-MM-dd',
-            id: 'date-picker-inline',
             className: 'ssg-options__time-range--date'
         }
 
@@ -571,6 +598,7 @@ function App() {
                                     {...commonProps}
                                     variant='inline'
                                     margin='normal'
+                                    id='date-picker-inline-from'
                                     value={selectedDateFrom}
                                     onChange={handleDateChangeFrom}
                                     KeyboardButtonProps={{
@@ -582,6 +610,7 @@ function App() {
                                     {...commonProps}
                                     variant='inline'
                                     margin='normal'
+                                    id='date-picker-inline-to'
                                     value={selectedDateTo}
                                     onChange={handleDateChangeTo}
                                     KeyboardButtonProps={{
@@ -608,8 +637,6 @@ function App() {
             </Collapse>
         )
     };
-
-    // const _renderSecondaryGraph = () => {};
 
     // FOOTER
     const _renderFooter = () => {

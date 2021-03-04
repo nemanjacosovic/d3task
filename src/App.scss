@@ -183,7 +183,6 @@ html, body, #root {
 
     &.MuiPaper-root {
       line-height: 0;
-      overflow: hidden;
       position: relative;
       margin-top: 15px;
       margin-bottom: 15px;
@@ -206,6 +205,61 @@ html, body, #root {
 
       &-subtitle {
         display: block;
+      }
+    }
+
+    &-tooltip {
+      opacity: 0;
+      z-index: 900;
+      width: 100px;
+      color: #000000;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 5px;
+      position: absolute;
+      display: inline-block;
+      padding: 10px 15px 15px;
+      border: 1px solid #333333;
+      background-color: #FFFFFF;
+      transition: transform 400ms ease;
+
+      &--date, &--key {
+        margin: 0;
+        display: block;
+        line-height: 1em;
+      }
+
+      &--date {
+        padding: 3px 0;
+        font-size: 11px;
+        text-align: center;
+        border-radius: 3px;
+        background-color: #efbf27;
+      }
+
+      &--key {
+        font-size: 12px;
+        text-align: left;
+        font-weight: normal;
+        padding: 10px 0 2px 0;
+        text-transform: uppercase;
+        border-bottom: 2px solid #ffcc25;
+
+        &:nth-child(4) .ssg-main__graph-tooltip--value {
+          color: #028090;
+        }
+        &:nth-child(3) .ssg-main__graph-tooltip--value {
+          color: #DEB841;
+        }
+        &:nth-child(2) .ssg-main__graph-tooltip--value {
+          color: #F45B69;
+        }
+      }
+
+      &--value {
+        float: right;
+        font-weight: bold;
       }
     }
   }
